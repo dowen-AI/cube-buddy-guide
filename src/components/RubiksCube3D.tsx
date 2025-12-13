@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface CubeState {
@@ -36,25 +36,57 @@ const CUBE_COLORS = {
 };
 
 const Cubelet = ({ position, colors }: CubeletProps) => {
-  const meshRef = useRef<THREE.Mesh>(null);
   const size = 0.95;
-  const gap = 0.02;
-
-  const materials = useMemo(() => {
-    return [
-      new THREE.MeshStandardMaterial({ color: colors.right || CUBE_COLORS.black }), // +X
-      new THREE.MeshStandardMaterial({ color: colors.left || CUBE_COLORS.black }),  // -X
-      new THREE.MeshStandardMaterial({ color: colors.top || CUBE_COLORS.black }),   // +Y
-      new THREE.MeshStandardMaterial({ color: colors.bottom || CUBE_COLORS.black }), // -Y
-      new THREE.MeshStandardMaterial({ color: colors.front || CUBE_COLORS.black }), // +Z
-      new THREE.MeshStandardMaterial({ color: colors.back || CUBE_COLORS.black }),  // -Z
-    ];
-  }, [colors]);
 
   return (
-    <mesh ref={meshRef} position={position} material={materials}>
-      <roundedBoxGeometry args={[size, size, size, 4, 0.08]} />
-    </mesh>
+    <group position={position}>
+      {/* Right face (+X) */}
+      {colors.right && (
+        <mesh position={[size / 2 + 0.001, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <planeGeometry args={[size * 0.85, size * 0.85]} />
+          <meshStandardMaterial color={colors.right} />
+        </mesh>
+      )}
+      {/* Left face (-X) */}
+      {colors.left && (
+        <mesh position={[-size / 2 - 0.001, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
+          <planeGeometry args={[size * 0.85, size * 0.85]} />
+          <meshStandardMaterial color={colors.left} />
+        </mesh>
+      )}
+      {/* Top face (+Y) */}
+      {colors.top && (
+        <mesh position={[0, size / 2 + 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[size * 0.85, size * 0.85]} />
+          <meshStandardMaterial color={colors.top} />
+        </mesh>
+      )}
+      {/* Bottom face (-Y) */}
+      {colors.bottom && (
+        <mesh position={[0, -size / 2 - 0.001, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[size * 0.85, size * 0.85]} />
+          <meshStandardMaterial color={colors.bottom} />
+        </mesh>
+      )}
+      {/* Front face (+Z) */}
+      {colors.front && (
+        <mesh position={[0, 0, size / 2 + 0.001]}>
+          <planeGeometry args={[size * 0.85, size * 0.85]} />
+          <meshStandardMaterial color={colors.front} />
+        </mesh>
+      )}
+      {/* Back face (-Z) */}
+      {colors.back && (
+        <mesh position={[0, 0, -size / 2 - 0.001]} rotation={[0, Math.PI, 0]}>
+          <planeGeometry args={[size * 0.85, size * 0.85]} />
+          <meshStandardMaterial color={colors.back} />
+        </mesh>
+      )}
+      {/* Black cube base */}
+      <RoundedBox args={[size, size, size]} radius={0.08} smoothness={4}>
+        <meshStandardMaterial color={CUBE_COLORS.black} />
+      </RoundedBox>
+    </group>
   );
 };
 
