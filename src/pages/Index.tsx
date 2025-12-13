@@ -110,7 +110,6 @@ const Index = () => {
                 description={stage.description}
                 goal={stage.goal}
                 steps={stage.steps}
-                cubeState={stage.cubeState}
                 algorithm={stage.algorithm}
                 algorithmName={stage.algorithmName}
                 isComplete={progress[stage.id] || false}
