@@ -8,6 +8,7 @@ import { HowToUseSection } from '@/components/HowToUseSection';
 import { StageCard } from '@/components/StageCard';
 import { NotationReference } from '@/components/NotationReference';
 import { CelebrationModal } from '@/components/CelebrationModal';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { stagesData } from '@/data/stagesData';
 
 const Index = () => {
@@ -74,7 +75,10 @@ const Index = () => {
         <meta name="keywords" content="Rubik's Cube, solve Rubik's Cube, beginner guide, tutorial, 3x3 cube, Layer by Layer method" />
       </Helmet>
 
-      <main className="min-h-screen">
+      <main className="min-h-screen bg-background">
+        {/* Theme Toggle */}
+        <ThemeToggle />
+
         {/* Progress Bar */}
         <ProgressBar
           percentage={progressPercentage}
