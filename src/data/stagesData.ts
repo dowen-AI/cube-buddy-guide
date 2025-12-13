@@ -222,11 +222,11 @@ export const stagesData: StageData[] = [
     description: 'Solve the second layer edges',
     goal: 'Insert the four edge pieces to complete the first two layers of the cube.',
     cubeState: middleLayerState,
-    algorithm: "U R U' R' U' F' U F",
-    algorithmName: 'Insert Right Algorithm',
+    algorithm: "U R U' R' U' F' U F / U' L' U' L U F U' F'",
+    algorithmName: 'Insert Right / Insert Left',
     steps: [
       {
-        instruction: "Flip the cube over so white is on top (you won't see it anymore).",
+        instruction: "Flip the cube over so white is on top (you won't see it anymore). Yellow should now be facing you on top.",
       },
       {
         instruction: "Find an edge piece in the top layer that does NOT have yellow on it.",
@@ -234,18 +234,22 @@ export const stagesData: StageData[] = [
       },
       {
         instruction: "Rotate the top layer until the edge's front color matches the center below it.",
-        move: "U"
       },
       {
-        instruction: "Look at the other color on the edge—it tells you which way to insert.",
-        tip: "If the color matches the right side, insert right. If it matches the left, insert left."
+        instruction: "Look at the other color on the edge piece. Does it match the RIGHT side or the LEFT side?",
+        tip: "This determines which algorithm to use!"
       },
       {
-        instruction: "To insert RIGHT: U R U' R' U' F' U F (Top, Right up, Top back, Right down, Top back, Front back, Top, Front).",
-        move: "R"
+        instruction: "INSERT RIGHT (if color matches right center): Top left (U'), Right up (R), Top right (U), Right down (R'). Then: Top left (U'), Front down (F'), Top right (U), Front up (F).",
+        tip: "Simple: U' R U R' U' F' U F"
+      },
+      {
+        instruction: "INSERT LEFT (if color matches left center): Top right (U), Left up (L'), Top left (U'), Left down (L). Then: Top right (U), Front up (F), Top left (U'), Front down (F').",
+        tip: "Simple: U L' U' L U F U' F'"
       },
       {
         instruction: "Repeat for all four middle layer edges.",
+        tip: "If an edge is stuck in the wrong place, insert any wrong piece into that spot—this will pop the stuck piece to the top!"
       }
     ],
   },
@@ -342,7 +346,7 @@ export const stagesData: StageData[] = [
     goal: 'Orient all yellow corners correctly to solve the entire cube!',
     cubeState: cubeStates.solved,
     algorithm: "R' D' R D",
-    algorithmName: 'Corner Twist (Sledgehammer Variant)',
+    algorithmName: 'Corner Twist',
     steps: [
       {
         instruction: "Flip the cube so YELLOW is now on the BOTTOM and WHITE is on top.",
@@ -352,20 +356,18 @@ export const stagesData: StageData[] = [
         instruction: "Find a yellow corner that's twisted wrong and move it to the front-right-bottom position.",
       },
       {
-        instruction: "Repeat this move: R' D' R D (Right down, Bottom back, Right up, Bottom forward).",
-        tip: "It takes 2 or 4 repetitions to fix each corner.",
-        move: "R'"
+        instruction: "Repeat this move: Right face DOWN (R'), Bottom face COUNTER-CLOCKWISE (D'), Right face UP (R), Bottom face CLOCKWISE (D).",
+        tip: "It takes 2 or 4 repetitions (so 8 or 16 moves) to fix each corner."
       },
       {
-        instruction: "WITHOUT turning the whole cube, rotate ONLY the bottom layer to bring the next wrong corner to the front-right-bottom.",
-        tip: "The cube will look scrambled—this is normal! Don't panic!",
-        move: "D"
+        instruction: "WITHOUT turning the whole cube, rotate ONLY the bottom layer (D or D') to bring the next wrong corner to the front-right-bottom.",
+        tip: "The cube will look scrambled—this is normal! Don't panic!"
       },
       {
-        instruction: "Repeat the algorithm for each twisted corner.",
+        instruction: "Repeat the R' D' R D algorithm for each twisted corner until all yellow stickers face down.",
       },
       {
-        instruction: "When all corners are fixed, rotate the bottom layer to align everything—the cube is SOLVED! 🎉",
+        instruction: "When all corners are fixed, rotate the bottom layer to align everything—the cube is SOLVED!",
       }
     ],
   },

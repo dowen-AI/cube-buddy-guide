@@ -1,13 +1,15 @@
 import { cn } from '@/lib/utils';
-import { Check, ChevronDown, ChevronUp, Play } from 'lucide-react';
-import { RubiksCube3D, type CubeState } from './RubiksCube3D';
+import { Check, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 interface Step {
   instruction: string;
   tip?: string;
-  move?: string;
 }
 
 interface StageCardProps {
@@ -16,12 +18,131 @@ interface StageCardProps {
   description: string;
   goal: string;
   steps: Step[];
-  cubeState: CubeState;
+  goalImage?: string;
   algorithm?: string;
   algorithmName?: string;
   isComplete: boolean;
   onToggleComplete: () => void;
 }
+
+// Static goal images for each stage (cube diagrams as styled divs)
+const StageGoalVisual = ({ stageId }: { stageId: number }) => {
+  const visuals: Record<number, React.ReactNode> = {
+    1: (
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-muted-foreground mb-2">White Cross (Bottom View)</p>
+        <div className="grid grid-cols-3 gap-1">
+          <div className="w-8 h-8 bg-muted rounded" />
+          <div className="w-8 h-8 bg-white border border-border rounded" />
+          <div className="w-8 h-8 bg-muted rounded" />
+          <div className="w-8 h-8 bg-white border border-border rounded" />
+          <div className="w-8 h-8 bg-white border border-border rounded" />
+          <div className="w-8 h-8 bg-white border border-border rounded" />
+          <div className="w-8 h-8 bg-muted rounded" />
+          <div className="w-8 h-8 bg-white border border-border rounded" />
+          <div className="w-8 h-8 bg-muted rounded" />
+        </div>
+      </div>
+    ),
+    2: (
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-muted-foreground mb-2">Complete White Face</p>
+        <div className="grid grid-cols-3 gap-1">
+          {Array(9).fill(null).map((_, i) => (
+            <div key={i} className="w-8 h-8 bg-white border border-border rounded" />
+          ))}
+        </div>
+      </div>
+    ),
+    3: (
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-muted-foreground mb-2">First Two Layers Complete</p>
+        <div className="flex gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-3 gap-0.5">
+              <div className="w-5 h-5 bg-cube-red rounded-sm" />
+              <div className="w-5 h-5 bg-cube-red rounded-sm" />
+              <div className="w-5 h-5 bg-cube-red rounded-sm" />
+            </div>
+            <div className="grid grid-cols-3 gap-0.5">
+              <div className="w-5 h-5 bg-cube-red rounded-sm" />
+              <div className="w-5 h-5 bg-cube-red rounded-sm" />
+              <div className="w-5 h-5 bg-cube-red rounded-sm" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-3 gap-0.5">
+              <div className="w-5 h-5 bg-cube-blue rounded-sm" />
+              <div className="w-5 h-5 bg-cube-blue rounded-sm" />
+              <div className="w-5 h-5 bg-cube-blue rounded-sm" />
+            </div>
+            <div className="grid grid-cols-3 gap-0.5">
+              <div className="w-5 h-5 bg-cube-blue rounded-sm" />
+              <div className="w-5 h-5 bg-cube-blue rounded-sm" />
+              <div className="w-5 h-5 bg-cube-blue rounded-sm" />
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+    4: (
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-muted-foreground mb-2">Yellow Cross (Top View)</p>
+        <div className="grid grid-cols-3 gap-1">
+          <div className="w-8 h-8 bg-muted rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-muted rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-muted rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-muted rounded" />
+        </div>
+      </div>
+    ),
+    5: (
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-muted-foreground mb-2">Edges Match Centers</p>
+        <div className="flex gap-1 items-center">
+          <div className="w-6 h-6 bg-cube-red rounded-sm" />
+          <div className="w-6 h-6 bg-cube-green rounded-sm" />
+          <div className="w-6 h-6 bg-cube-orange rounded-sm" />
+          <div className="w-6 h-6 bg-cube-blue rounded-sm" />
+        </div>
+        <p className="text-xs text-muted-foreground">↑ Side colors aligned</p>
+      </div>
+    ),
+    6: (
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-muted-foreground mb-2">Corners in Position</p>
+        <div className="grid grid-cols-3 gap-1">
+          <div className="w-8 h-8 bg-cube-yellow rounded flex items-center justify-center text-xs">✓</div>
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded flex items-center justify-center text-xs">✓</div>
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded flex items-center justify-center text-xs">✓</div>
+          <div className="w-8 h-8 bg-cube-yellow rounded" />
+          <div className="w-8 h-8 bg-cube-yellow rounded flex items-center justify-center text-xs">✓</div>
+        </div>
+      </div>
+    ),
+    7: (
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-muted-foreground mb-2">SOLVED!</p>
+        <div className="grid grid-cols-3 gap-1">
+          {Array(9).fill(null).map((_, i) => (
+            <div key={i} className="w-8 h-8 bg-cube-yellow rounded" />
+          ))}
+        </div>
+      </div>
+    ),
+  };
+
+  return visuals[stageId] || null;
+};
 
 export const StageCard = ({
   id,
@@ -29,44 +150,23 @@ export const StageCard = ({
   description,
   goal,
   steps,
-  cubeState,
   algorithm,
   algorithmName,
   isComplete,
   onToggleComplete,
 }: StageCardProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [activeMove, setActiveMove] = useState<string | null>(null);
+  const [isNotationOpen, setIsNotationOpen] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const handleShowMove = (move: string) => {
-    setActiveMove(move);
-    // Reset after animation completes
-    setTimeout(() => setActiveMove(null), 1500);
+  const handleToggleComplete = () => {
+    if (!isComplete) {
+      setShowConfirmation(true);
+      setTimeout(() => setShowConfirmation(false), 3000);
+    }
+    onToggleComplete();
   };
 
-  const getMoveDescription = (move: string): string => {
-    const descriptions: Record<string, string> = {
-      "U": "Top layer clockwise",
-      "U'": "Top layer counter-clockwise",
-      "U2": "Top layer 180°",
-      "D": "Bottom layer clockwise",
-      "D'": "Bottom layer counter-clockwise",
-      "D2": "Bottom layer 180°",
-      "R": "Right face clockwise",
-      "R'": "Right face counter-clockwise",
-      "R2": "Right face 180°",
-      "L": "Left face clockwise",
-      "L'": "Left face counter-clockwise",
-      "L2": "Left face 180°",
-      "F": "Front face clockwise",
-      "F'": "Front face counter-clockwise",
-      "F2": "Front face 180°",
-      "B": "Back face clockwise",
-      "B'": "Back face counter-clockwise",
-      "B2": "Back face 180°",
-    };
-    return descriptions[move] || move;
-  };
   return (
     <section
       id={`stage-${id}`}
@@ -114,13 +214,13 @@ export const StageCard = ({
       {isExpanded && (
         <div className="p-6 md:p-8">
           <div className="grid md:grid-cols-2 gap-8">
-            {/* 3D Cube */}
+            {/* Goal Visual */}
             <div className="order-2 md:order-1">
-              <div className="bg-muted/50 rounded-xl p-4">
-                <p className="text-sm text-muted-foreground text-center mb-2">
-                  Drag to rotate the cube
-                </p>
-                <RubiksCube3D cubeState={cubeState} autoRotate={false} />
+              <div className="bg-muted/50 rounded-xl p-6 flex flex-col items-center justify-center min-h-[200px]">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+                  Goal for this Stage
+                </h3>
+                <StageGoalVisual stageId={id} />
               </div>
             </div>
 
@@ -152,48 +252,43 @@ export const StageCard = ({
                             💡 {step.tip}
                           </p>
                         )}
-                        {step.move && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleShowMove(step.move!)}
-                            className={cn(
-                              "mt-2 gap-2 transition-all",
-                              activeMove === step.move && "bg-primary text-primary-foreground"
-                            )}
-                          >
-                            <Play className="w-3 h-3" />
-                            See this move: <code className="font-mono font-semibold">{step.move}</code>
-                            <span className="text-xs opacity-75">({getMoveDescription(step.move)})</span>
-                          </Button>
-                        )}
                       </div>
                     </li>
                   ))}
                 </ol>
               </div>
 
-              {/* Algorithm (if applicable) */}
+              {/* Algorithm (Collapsible) */}
               {algorithm && (
-                <div className="bg-muted rounded-xl p-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                    {algorithmName || 'Algorithm'}
-                  </h3>
-                  <code className="text-lg font-mono text-primary font-semibold">
-                    {algorithm}
-                  </code>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Don't worry about this notation yet—focus on the simple instructions above!
-                  </p>
-                </div>
+                <Collapsible open={isNotationOpen} onOpenChange={setIsNotationOpen}>
+                  <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors w-full">
+                    <ChevronRight className={cn(
+                      "w-4 h-4 transition-transform",
+                      isNotationOpen && "rotate-90"
+                    )} />
+                    <span className="uppercase tracking-wide">
+                      {algorithmName || 'Algorithm'} (Optional Notation)
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="bg-muted rounded-xl p-4 mt-2">
+                      <code className="text-lg font-mono text-primary font-semibold">
+                        {algorithm}
+                      </code>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        This is the standard notation. You don't need to memorize this—the simple instructions above work just fine!
+                      </p>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </div>
           </div>
 
           {/* Complete Button */}
-          <div className="mt-8 pt-6 border-t border-border flex justify-center">
+          <div className="mt-8 pt-6 border-t border-border flex flex-col items-center gap-4">
             <button
-              onClick={onToggleComplete}
+              onClick={handleToggleComplete}
               className={cn(
                 "flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200",
                 isComplete
@@ -204,6 +299,18 @@ export const StageCard = ({
               <Check className={cn("w-5 h-5", !isComplete && "opacity-50")} />
               {isComplete ? "Stage Complete!" : "Mark as Complete"}
             </button>
+
+            {/* Confirmation feedback */}
+            {showConfirmation && (
+              <div className="animate-fade-in bg-cube-green/10 border border-cube-green/30 rounded-xl p-4 text-center">
+                <p className="text-cube-green font-semibold mb-2">
+                  Great job! Your cube should now match the goal above.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  If it doesn't look right, review the steps and try again—you've got this!
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
