@@ -3,6 +3,7 @@ import { cubeStates, CUBE_COLORS, type CubeState } from '@/components/RubiksCube
 interface Step {
   instruction: string;
   tip?: string;
+  move?: string; // Move notation for animation (e.g., "F2", "R", "U'")
 }
 
 interface StageData {
@@ -153,26 +154,34 @@ export const stagesData: StageData[] = [
   {
     id: 1,
     title: 'The White Cross',
-    description: 'Build a white cross on the bottom of your cube',
-    goal: 'Create a white cross on the bottom face, with the edge colors matching the center colors of each side.',
+    description: 'Build a white cross using the Daisy Method',
+    goal: 'Create a perfect white cross on the bottom face, with the colors of the side stickers matching the center pieces above them.',
     cubeState: whiteCrossState,
     steps: [
       {
-        instruction: "Hold the cube with the yellow center facing up and white center facing down.",
+        instruction: "Find the white center. Turn the cube so the Yellow center is facing UP and the White center is facing DOWN.",
         tip: "The center pieces never move—they define each face's color!"
       },
       {
-        instruction: "Find a white edge piece (a piece with white and one other color).",
-        tip: "Edge pieces are in the middle of each edge—they have exactly 2 colors."
+        instruction: "Create the 'Daisy.' Find the four white edge pieces (white paired with another color) and move them one-by-one up to the Yellow face.",
+        tip: "When done correctly, you'll see white edges forming a flower/daisy pattern around the yellow center on top."
       },
       {
-        instruction: "Move the edge piece so the non-white color aligns with its matching center.",
+        instruction: "Select one white edge piece on the Yellow face. Look at the OTHER color on that piece (not white).",
+        tip: "Edge pieces have exactly 2 colors. One is white, the other tells you where it belongs."
       },
       {
-        instruction: "Turn that face twice to bring the white sticker to the bottom.",
+        instruction: "Align the side color. Rotate ONLY the Top Layer (U) until the side color on the edge piece matches its corresponding Center Piece on the middle layer.",
+        tip: "For example: if the edge has Red and White, rotate the top until the Red sticker lines up with the Red center.",
+        move: "U"
       },
       {
-        instruction: "Repeat for all four white edge pieces.",
+        instruction: "Bring it home. Once aligned, turn that entire Front Face TWICE (180°). This moves the white edge from the top down to the correct spot next to the White center.",
+        tip: "The white sticker is now on the bottom, and the side color matches the center above it!",
+        move: "F2"
+      },
+      {
+        instruction: "Repeat steps 3-5 for the remaining three white edge pieces. When finished, flip the cube over to admire your white cross!",
         tip: "Take your time—this is the foundation for everything else!"
       }
     ],
@@ -192,13 +201,15 @@ export const stagesData: StageData[] = [
       },
       {
         instruction: "Position the corner above where it needs to go (match the other 2 colors to the centers).",
+        move: "U"
       },
       {
         instruction: "Hold the cube so the corner is at the front-right-top position.",
       },
       {
-        instruction: "Perform the Sledgehammer: Turn right face up, turn top clockwise, turn right face down, turn top counter-clockwise.",
-        tip: "You may need to repeat this 1-5 times until the corner drops into place!"
+        instruction: "Perform the Sledgehammer: Turn right face up (R), turn top clockwise (U), turn right face down (R'), turn top counter-clockwise (U').",
+        tip: "You may need to repeat this 1-5 times until the corner drops into place!",
+        move: "R"
       },
       {
         instruction: "Repeat for all four corners.",
@@ -223,13 +234,15 @@ export const stagesData: StageData[] = [
       },
       {
         instruction: "Rotate the top layer until the edge's front color matches the center below it.",
+        move: "U"
       },
       {
         instruction: "Look at the other color on the edge—it tells you which way to insert.",
         tip: "If the color matches the right side, insert right. If it matches the left, insert left."
       },
       {
-        instruction: "To insert RIGHT: Top clockwise, Right up, Top counter-clockwise, Right down, Top counter-clockwise, Front counter-clockwise, Top clockwise, Front clockwise.",
+        instruction: "To insert RIGHT: U R U' R' U' F' U F (Top, Right up, Top back, Right down, Top back, Front back, Top, Front).",
+        move: "R"
       },
       {
         instruction: "Repeat for all four middle layer edges.",
@@ -252,14 +265,15 @@ export const stagesData: StageData[] = [
         instruction: "If you see a DOT: Hold the cube any way and do the algorithm once. You'll get an L-shape.",
       },
       {
-        instruction: "If you see an L-SHAPE: Hold the cube so the L points to the back-left, then do the algorithm. You'll get a line.",
-        tip: "Imagine the L is in the 9 o'clock position!"
+        instruction: "If you see an L-SHAPE: Hold the cube so the L points to the back-left (9 o'clock position), then do the algorithm.",
+        tip: "You'll get a line after this!"
       },
       {
         instruction: "If you see a LINE: Hold the cube so the line goes left-to-right (horizontal), then do the algorithm.",
       },
       {
-        instruction: "The algorithm: Front clockwise, Right up, Top clockwise, Right down, Top counter-clockwise, Front counter-clockwise.",
+        instruction: "The algorithm: F R U R' U' F' (Front, Right up, Top, Right down, Top back, Front back).",
+        move: "F"
       }
     ],
   },
@@ -277,7 +291,8 @@ export const stagesData: StageData[] = [
       },
       {
         instruction: "Rotate the top layer to try to match as many edges as possible.",
-        tip: "You might get 0, 2, or all 4 matching. Never just 1 or 3."
+        tip: "You might get 0, 2, or all 4 matching. Never just 1 or 3.",
+        move: "U"
       },
       {
         instruction: "If you have 2 ADJACENT (next to each other) matches: Hold them at the back and right.",
@@ -286,7 +301,8 @@ export const stagesData: StageData[] = [
         instruction: "If you have 2 OPPOSITE matches: Do the algorithm once, then you'll have 2 adjacent.",
       },
       {
-        instruction: "The algorithm: Right up, Top clockwise, Right down, Top clockwise, Right up, Top twice, Right down.",
+        instruction: "The algorithm: R U R' U R U2 R' (Right up, Top, Right down, Top, Right up, Top twice, Right down).",
+        move: "R"
       },
       {
         instruction: "After the algorithm, rotate the top to match all four edges.",
@@ -310,7 +326,8 @@ export const stagesData: StageData[] = [
         tip: "If no corners are correct, do the algorithm once with any position, then look again."
       },
       {
-        instruction: "The algorithm: Top clockwise, Right up, Top counter-clockwise, Left down, Top clockwise, Right down, Top counter-clockwise, Left up.",
+        instruction: "The algorithm: U R U' L' U R' U' L (Top, Right up, Top back, Left down, Top, Right down, Top back, Left up).",
+        move: "R"
       },
       {
         instruction: "Repeat until all four corners are in the correct positions.",
@@ -335,12 +352,14 @@ export const stagesData: StageData[] = [
         instruction: "Find a yellow corner that's twisted wrong and move it to the front-right-bottom position.",
       },
       {
-        instruction: "Repeat this move: Right down, Bottom counter-clockwise, Right up, Bottom clockwise.",
-        tip: "It takes 2 or 4 repetitions to fix each corner."
+        instruction: "Repeat this move: R' D' R D (Right down, Bottom back, Right up, Bottom forward).",
+        tip: "It takes 2 or 4 repetitions to fix each corner.",
+        move: "R'"
       },
       {
         instruction: "WITHOUT turning the whole cube, rotate ONLY the bottom layer to bring the next wrong corner to the front-right-bottom.",
-        tip: "The cube will look scrambled—this is normal! Don't panic!"
+        tip: "The cube will look scrambled—this is normal! Don't panic!",
+        move: "D"
       },
       {
         instruction: "Repeat the algorithm for each twisted corner.",
