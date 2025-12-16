@@ -154,35 +154,29 @@ export const stagesData: StageData[] = [
   {
     id: 1,
     title: 'The White Cross',
-    description: 'Build a white cross using the Daisy Method',
+    description: 'You are building a plus sign (+) made of white pieces on the bottom. Each arm of the cross must also match the color on the side. This cross is the foundation for the entire cube.',
     goal: 'Create a perfect white cross on the bottom face, with the colors of the side stickers matching the center pieces above them.',
     cubeState: whiteCrossState,
     steps: [
       {
-        instruction: "Find the white center. Turn the cube so the Yellow center is facing UP and the White center is facing DOWN.",
-        tip: "The center pieces never move—they define each face's color!"
+        instruction: "Hold the cube correctly. Turn the cube so Yellow is on top and White is on the bottom.",
+        tip: "The center pieces never move. They tell you what color each side will be."
       },
       {
-        instruction: "Create the 'Daisy.' Find the four white edge pieces (white paired with another color) and move them one-by-one up to the Yellow face.",
-        tip: "When done correctly, you'll see white edges forming a flower/daisy pattern around the yellow center on top."
+        instruction: "Set up the pieces (the 'Daisy'). This is not the goal—it's just a helper. Find the four pieces that have White and one other color. Move them so the white part touches the yellow center on top.",
+        tip: "When you're done, you'll see four white pieces around the yellow center. This setup makes the next steps much easier."
       },
       {
-        instruction: "Select one white edge piece on the Yellow face. Look at the OTHER color on that piece (not white).",
-        tip: "Edge pieces have exactly 2 colors. One is white, the other tells you where it belongs."
+        instruction: "Match the side color. Pick one white piece on the top. Look at the other color on that piece. Turn only the top layer until that color matches the center below it.",
+        tip: "Example: White + Red lines up with the Red center."
       },
       {
-        instruction: "Align the side color. Rotate ONLY the Top Layer (U) until the side color on the edge piece matches its corresponding Center Piece on the middle layer.",
-        tip: "For example: if the edge has Red and White, rotate the top until the Red sticker lines up with the Red center.",
-        move: "U"
+        instruction: "Drop it into place. Once the colors match, turn that face two times. The white piece will move from the top to the bottom, locking into the correct spot.",
+        tip: "One arm of the white cross is complete!"
       },
       {
-        instruction: "Bring it home. Once aligned, turn that entire Front Face TWICE (180°). This moves the white edge from the top down to the correct spot next to the White center.",
-        tip: "The white sticker is now on the bottom, and the side color matches the center above it!",
-        move: "F2"
-      },
-      {
-        instruction: "Repeat steps 3-5 for the remaining three white edge pieces. When finished, flip the cube over to admire your white cross!",
-        tip: "Take your time—this is the foundation for everything else!"
+        instruction: "Repeat steps 3 and 4 for the remaining white pieces. When finished, flip the cube over.",
+        tip: "You should now see a perfect white cross!"
       }
     ],
   },
