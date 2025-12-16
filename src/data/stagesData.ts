@@ -183,27 +183,25 @@ export const stagesData: StageData[] = [
   {
     id: 2,
     title: 'The White Corners',
-    description: 'Complete the first layer by adding the corners',
-    goal: 'Insert all four white corner pieces to complete the entire white face and first layer.',
+    description: 'Complete the first layer',
+    goal: 'Fill in the four white corners to complete the entire white face.',
     cubeState: whiteCornersState,
     algorithm: "R U R' U'",
     algorithmName: 'The Sledgehammer',
     steps: [
       {
         instruction: "Find a white corner piece in the top layer.",
-        tip: "Corner pieces are at the corners—they have exactly 3 colors."
+        tip: "Corner pieces have three colors."
       },
       {
-        instruction: "Position the corner above where it needs to go (match the other 2 colors to the centers).",
-        move: "U"
+        instruction: "Position it above where it belongs by matching the other two colors to their centers.",
       },
       {
-        instruction: "Hold the cube so the corner is at the front-right-top position.",
+        instruction: "Hold the cube so the corner is at the front-right-top.",
       },
       {
-        instruction: "Perform the Sledgehammer: Turn right face up (R), turn top clockwise (U), turn right face down (R'), turn top counter-clockwise (U').",
-        tip: "You may need to repeat this 1-5 times until the corner drops into place!",
-        move: "R"
+        instruction: "Perform the Sledgehammer: Right up → Top → Right down → Top back (R U R' U').",
+        tip: "Repeat 1–5 times until the corner drops into place."
       },
       {
         instruction: "Repeat for all four corners.",
@@ -214,36 +212,33 @@ export const stagesData: StageData[] = [
     id: 3,
     title: 'The Middle Layer',
     description: 'Solve the second layer edges',
-    goal: 'Insert the four edge pieces to complete the first two layers of the cube.',
+    goal: 'Complete the first two layers of the cube.',
     cubeState: middleLayerState,
-    algorithm: "U R U' R' U' F' U F / U' L' U' L U F U' F'",
+    algorithm: "U' R U R' U' F' U F / U L' U' L U F U' F'",
     algorithmName: 'Insert Right / Insert Left',
     steps: [
       {
-        instruction: "Flip the cube over so white is on top (you won't see it anymore). Yellow should now be facing you on top.",
+        instruction: "Flip the cube so white is on top. Yellow is now on top.",
       },
       {
-        instruction: "Find an edge piece in the top layer that does NOT have yellow on it.",
-        tip: "Yellow edges belong in the top layer—ignore them for now!"
+        instruction: "Find an edge piece in the top layer without yellow.",
+        tip: "Yellow edges stay on top for now."
       },
       {
-        instruction: "Rotate the top layer until the edge's front color matches the center below it.",
+        instruction: "Match the front color of the edge with the center below it.",
       },
       {
-        instruction: "Look at the other color on the edge piece. Does it match the RIGHT side or the LEFT side?",
-        tip: "This determines which algorithm to use!"
+        instruction: "Look at the other color. Does it belong on the left or right?",
       },
       {
-        instruction: "INSERT RIGHT (if color matches right center): Top left (U'), Right up (R), Top right (U), Right down (R'). Then: Top left (U'), Front down (F'), Top right (U), Front up (F).",
-        tip: "Simple: U' R U R' U' F' U F"
+        instruction: "Insert Right (if color matches right): U' R U R' U' F' U F",
       },
       {
-        instruction: "INSERT LEFT (if color matches left center): Top right (U), Left up (L'), Top left (U'), Left down (L). Then: Top right (U), Front up (F), Top left (U'), Front down (F').",
-        tip: "Simple: U L' U' L U F U' F'"
+        instruction: "Insert Left (if color matches left): U L' U' L U F U' F'",
       },
       {
-        instruction: "Repeat for all four middle layer edges.",
-        tip: "If an edge is stuck in the wrong place, insert any wrong piece into that spot—this will pop the stuck piece to the top!"
+        instruction: "Repeat for all middle layer edges.",
+        tip: "If one is stuck wrong, insert any edge there to pop it out."
       }
     ],
   },
@@ -251,117 +246,110 @@ export const stagesData: StageData[] = [
     id: 4,
     title: 'The Yellow Cross',
     description: 'Create a yellow cross on top',
-    goal: 'Form a yellow cross on the top face (ignoring the corners for now).',
+    goal: 'Form a yellow cross (ignore corners for now).',
     cubeState: yellowCrossState,
     algorithm: "F R U R' U' F'",
     algorithmName: 'Yellow Cross Algorithm',
     steps: [
       {
-        instruction: "Look at the yellow face. You'll see one of three patterns: a dot, an L-shape, or a line.",
+        instruction: "Look at the yellow face. You'll see a dot, L-shape, or line.",
       },
       {
-        instruction: "If you see a DOT: Hold the cube any way and do the algorithm once. You'll get an L-shape.",
+        instruction: "Dot: Do the algorithm once → you'll get an L.",
       },
       {
-        instruction: "If you see an L-SHAPE: Hold the cube so the L points to the back-left (9 o'clock position), then do the algorithm.",
-        tip: "You'll get a line after this!"
+        instruction: "L-shape: Hold it like a backwards L (pointing to back-left), then do the algorithm.",
       },
       {
-        instruction: "If you see a LINE: Hold the cube so the line goes left-to-right (horizontal), then do the algorithm.",
+        instruction: "Line: Hold it horizontally, then do the algorithm.",
       },
       {
-        instruction: "The algorithm: F R U R' U' F' (Front, Right up, Top, Right down, Top back, Front back).",
-        move: "F"
+        instruction: "Algorithm: F R U R' U' F'",
       }
     ],
   },
   {
     id: 5,
     title: 'Yellow Edge Permutation',
-    description: 'Position the yellow edges correctly',
-    goal: 'Move the yellow edge pieces so their side colors match the center colors.',
+    description: 'Match yellow edges to centers',
+    goal: 'Side colors of yellow edges match their centers.',
     cubeState: cubeStates.solved,
     algorithm: "R U R' U R U2 R'",
     algorithmName: 'Sune Algorithm',
     steps: [
       {
-        instruction: "Look at the side colors of the yellow edges—you need to match them to the centers.",
+        instruction: "Check how many edges already match.",
       },
       {
-        instruction: "Rotate the top layer to try to match as many edges as possible.",
-        tip: "You might get 0, 2, or all 4 matching. Never just 1 or 3.",
-        move: "U"
+        instruction: "Rotate the top layer to maximize matches.",
+        tip: "You'll get 0, 2, or 4 matches."
       },
       {
-        instruction: "If you have 2 ADJACENT (next to each other) matches: Hold them at the back and right.",
+        instruction: "If 2 adjacent, hold them at the back and right.",
       },
       {
-        instruction: "If you have 2 OPPOSITE matches: Do the algorithm once, then you'll have 2 adjacent.",
+        instruction: "If 2 opposite, do the algorithm once to get adjacent.",
       },
       {
-        instruction: "The algorithm: R U R' U R U2 R' (Right up, Top, Right down, Top, Right up, Top twice, Right down).",
-        move: "R"
+        instruction: "Algorithm: R U R' U R U2 R'",
       },
       {
-        instruction: "After the algorithm, rotate the top to match all four edges.",
+        instruction: "Rotate the top layer to finish alignment.",
       }
     ],
   },
   {
     id: 6,
     title: 'Yellow Corner Permutation',
-    description: 'Move corners to their correct positions',
-    goal: 'Position all yellow corners correctly (they might still be twisted wrong—that\'s okay).',
+    description: 'Put corners in the correct position',
+    goal: 'All yellow corners are in the right place (twist doesn\'t matter yet).',
     cubeState: cubeStates.solved,
     algorithm: "U R U' L' U R' U' L",
     algorithmName: 'Corner Swap Algorithm',
     steps: [
       {
-        instruction: "Check each corner: is it in the right POSITION? (The colors should match the three faces around it, even if twisted.)",
+        instruction: "Find a corner that's already in the correct position.",
       },
       {
-        instruction: "Find a corner that IS in the correct position and hold it at the front-right-top.",
-        tip: "If no corners are correct, do the algorithm once with any position, then look again."
+        instruction: "Hold it at front-right-top.",
+        tip: "If none are correct, do the algorithm once."
       },
       {
-        instruction: "The algorithm: U R U' L' U R' U' L (Top, Right up, Top back, Left down, Top, Right down, Top back, Left up).",
-        move: "R"
+        instruction: "Algorithm: U R U' L' U R' U' L",
       },
       {
-        instruction: "Repeat until all four corners are in the correct positions.",
-        tip: "Remember: the corners might look wrong because they're twisted—that's fixed in the next stage!"
+        instruction: "Repeat until all corners are positioned correctly.",
       }
     ],
   },
   {
     id: 7,
     title: 'Yellow Corner Orientation',
-    description: 'The final step—twist the corners!',
-    goal: 'Orient all yellow corners correctly to solve the entire cube!',
+    description: 'Twist the corners and finish the cube',
+    goal: 'Solve the cube completely.',
     cubeState: cubeStates.solved,
     algorithm: "R' D' R D",
     algorithmName: 'Corner Twist',
     steps: [
       {
-        instruction: "Flip the cube so YELLOW is now on the BOTTOM and WHITE is on top.",
-        tip: "This is very important—the cube will look scrambled during this step, but trust the process!"
+        instruction: "Flip the cube so yellow is on the bottom, white on top.",
+        tip: "The cube will look scrambled. This is normal."
       },
       {
-        instruction: "Find a yellow corner that's twisted wrong and move it to the front-right-bottom position.",
+        instruction: "Bring a twisted yellow corner to front-right-bottom.",
       },
       {
-        instruction: "Repeat this move: Right face DOWN (R'), Bottom face COUNTER-CLOCKWISE (D'), Right face UP (R), Bottom face CLOCKWISE (D).",
-        tip: "It takes 2 or 4 repetitions (so 8 or 16 moves) to fix each corner."
+        instruction: "Repeat: R' D' R D (2 or 4 times per corner).",
       },
       {
-        instruction: "WITHOUT turning the whole cube, rotate ONLY the bottom layer (D or D') to bring the next wrong corner to the front-right-bottom.",
-        tip: "The cube will look scrambled—this is normal! Don't panic!"
+        instruction: "Rotate only the bottom layer to bring the next wrong corner into position.",
       },
       {
-        instruction: "Repeat the R' D' R D algorithm for each twisted corner until all yellow stickers face down.",
+        instruction: "Repeat until all yellow corners face down.",
       },
       {
-        instruction: "When all corners are fixed, rotate the bottom layer to align everything—the cube is SOLVED!",
+        instruction: "Rotate the bottom layer to align everything.",
+        tip: "Solved!"
       }
     ],
   },
