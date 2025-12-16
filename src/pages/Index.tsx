@@ -5,11 +5,11 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { StageNavigation } from '@/components/StageNavigation';
 import { HeroSection } from '@/components/HeroSection';
 import { HowToUseSection } from '@/components/HowToUseSection';
-import { StageCard } from '@/components/StageCard';
+import { InteractiveStageCard } from '@/components/InteractiveStageCard';
 import { NotationReference } from '@/components/NotationReference';
 import { CelebrationModal } from '@/components/CelebrationModal';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { stagesData } from '@/data/stagesData';
+import { interactiveStagesData } from '@/data/interactiveStagesData';
 
 const Index = () => {
   const {
@@ -27,7 +27,7 @@ const Index = () => {
   // Track active stage on scroll
   useEffect(() => {
     const handleScroll = () => {
-      const stageElements = stagesData.map((stage) =>
+      const stageElements = interactiveStagesData.map((stage) =>
         document.getElementById(`stage-${stage.id}`)
       );
 
@@ -102,16 +102,10 @@ const Index = () => {
         {/* Stages */}
         <section className="py-16 px-4">
           <div className="max-w-4xl mx-auto space-y-12">
-            {stagesData.map((stage) => (
-              <StageCard
+            {interactiveStagesData.map((stage) => (
+              <InteractiveStageCard
                 key={stage.id}
-                id={stage.id}
-                title={stage.title}
-                description={stage.description}
-                goal={stage.goal}
-                steps={stage.steps}
-                algorithm={stage.algorithm}
-                algorithmName={stage.algorithmName}
+                stage={stage}
                 isComplete={progress[stage.id] || false}
                 onToggleComplete={() => toggleStage(stage.id)}
               />

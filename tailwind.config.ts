@@ -57,6 +57,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        cube: {
+          red: "hsl(var(--cube-red))",
+          blue: "hsl(var(--cube-blue))",
+          green: "hsl(var(--cube-green))",
+          orange: "hsl(var(--cube-orange))",
+          yellow: "hsl(var(--cube-yellow))",
+          white: "hsl(var(--cube-white))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
