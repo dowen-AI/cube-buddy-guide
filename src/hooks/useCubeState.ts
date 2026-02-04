@@ -215,7 +215,200 @@ export const executeMove = (state: CubeState, move: MoveName): CubeState => {
   }
 };
 
-// Create a scrambled cube for practice
+export const getSolvedCube = (): CubeState => ({
+  front: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.red)),
+  back: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.orange)),
+  left: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.blue)),
+  right: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.green)),
+  top: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.yellow)),
+  bottom: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.white)),
+});
+
+// ============================================
+// STAGE-SPECIFIC STARTING STATES
+// These show a cube in a realistic state for each stage
+// ============================================
+
+// Stage 1: White Cross - Start with white edges scattered around
+// Shows a cube where white edges need to be brought to the top (Daisy formation)
+export const getStage1StartState = (): CubeState => {
+  const state = getSolvedCube();
+  
+  // Scatter white edges to different faces to demonstrate the problem
+  // White-Red edge: move to right face (middle)
+  state.bottom[1][0] = CUBE_COLORS.blue;  // Remove white from bottom
+  state.right[1][0] = CUBE_COLORS.white;  // Put white on right face
+  
+  // White-Green edge: move to front face (middle)
+  state.bottom[0][1] = CUBE_COLORS.red;
+  state.front[1][2] = CUBE_COLORS.white;
+  
+  // White-Orange edge: on back top
+  state.bottom[1][2] = CUBE_COLORS.green;
+  state.back[0][1] = CUBE_COLORS.white;
+  
+  // White-Blue edge: already somewhat misplaced
+  state.bottom[2][1] = CUBE_COLORS.orange;
+  state.left[1][0] = CUBE_COLORS.white;
+  
+  // Yellow center stays on top, white center on bottom
+  return state;
+};
+
+// Stage 1: Daisy state - White edges around yellow center
+export const getDaisyState = (): CubeState => {
+  const state = getSolvedCube();
+  
+  // Put white edges around the yellow center (top face)
+  // The white stickers should be on top, touching yellow center
+  state.top[0][1] = CUBE_COLORS.white; // Back edge
+  state.top[1][0] = CUBE_COLORS.white; // Left edge  
+  state.top[1][2] = CUBE_COLORS.white; // Right edge
+  state.top[2][1] = CUBE_COLORS.white; // Front edge
+  
+  // Remove white from bottom (they're now on top)
+  state.bottom[0][1] = CUBE_COLORS.orange;
+  state.bottom[1][0] = CUBE_COLORS.blue;
+  state.bottom[1][2] = CUBE_COLORS.green;
+  state.bottom[2][1] = CUBE_COLORS.red;
+  
+  return state;
+};
+
+// Stage 1: Goal state - White cross complete
+export const getWhiteCrossState = (): CubeState => {
+  const state = getSolvedCube();
+  // White cross is on bottom with matching side colors
+  // This is essentially a solved first layer cross
+  return state;
+};
+
+// Stage 2: White Corners - Cross done, corners scattered
+export const getStage2StartState = (): CubeState => {
+  const state = getSolvedCube();
+  
+  // White cross is done (bottom)
+  // But corners are in wrong positions/orientations
+  // Move white corners to top layer, misoriented
+  
+  // White-Red-Green corner: put on top front-right, white facing front
+  state.bottom[0][2] = CUBE_COLORS.yellow;
+  state.front[2][2] = CUBE_COLORS.white;
+  state.right[2][0] = CUBE_COLORS.red;
+  state.top[2][2] = CUBE_COLORS.green;
+  
+  // White-Red-Blue corner: put on top front-left
+  state.bottom[0][0] = CUBE_COLORS.yellow;
+  state.front[2][0] = CUBE_COLORS.blue;
+  state.left[2][2] = CUBE_COLORS.white;
+  state.top[2][0] = CUBE_COLORS.red;
+  
+  return state;
+};
+
+// Stage 3: Middle Layer - First layer done, middle edges scrambled
+export const getStage3StartState = (): CubeState => {
+  const state = getSolvedCube();
+  
+  // First layer (white face + matching sides) is complete
+  // Middle layer edges are wrong or in bottom layer
+  
+  // Red-Green edge: in bottom layer
+  state.front[1][2] = CUBE_COLORS.yellow;
+  state.right[1][0] = CUBE_COLORS.yellow;
+  state.bottom[0][1] = CUBE_COLORS.red;
+  state.bottom[1][2] = CUBE_COLORS.green;
+  
+  return state;
+};
+
+// Stage 4: Yellow Cross - First two layers done
+export const getStage4StartState = (): CubeState => {
+  const state = getSolvedCube();
+  
+  // F2L complete, yellow face shows a dot/L-shape/line
+  // Yellow corners and some edges are not yellow-facing-up
+  state.top[0][1] = CUBE_COLORS.orange; // Back edge - not yellow
+  state.top[1][0] = CUBE_COLORS.blue;   // Left edge - not yellow
+  
+  return state;
+};
+
+// Stage 5: Yellow Edge Permutation - Yellow cross done, edges not matched
+export const getStage5StartState = (): CubeState => {
+  const state = getSolvedCube();
+  
+  // Yellow cross is complete but edges are in wrong positions
+  // Swap front and right edges
+  const temp = state.front[0][1];
+  state.front[0][1] = state.right[0][1];
+  state.right[0][1] = temp;
+  
+  return state;
+};
+
+// Stage 6: Yellow Corner Permutation - Edges done, corners in wrong spots
+export const getStage6StartState = (): CubeState => {
+  const state = getSolvedCube();
+  
+  // Yellow edges matched, but corners are in wrong positions (right colors, wrong spots)
+  // Swap front-right and back-right corners
+  const tempTop1 = state.top[2][2];
+  const tempTop2 = state.top[0][2];
+  const tempFront = state.front[0][2];
+  const tempBack = state.back[0][0];
+  const tempRight1 = state.right[0][0];
+  const tempRight2 = state.right[0][2];
+  
+  state.top[2][2] = tempTop2;
+  state.top[0][2] = tempTop1;
+  state.front[0][2] = tempRight2;
+  state.back[0][0] = tempRight1;
+  state.right[0][0] = tempBack;
+  state.right[0][2] = tempFront;
+  
+  return state;
+};
+
+// Stage 7: Yellow Corner Orientation - Corners in right spots but twisted
+export const getStage7StartState = (): CubeState => {
+  const state = getSolvedCube();
+  
+  // Corners are in correct positions but need to be twisted
+  // Twist front-right-top corner
+  const y = state.top[2][2];
+  const f = state.front[0][2];
+  const r = state.right[0][0];
+  state.top[2][2] = f;
+  state.front[0][2] = r;
+  state.right[0][0] = y;
+  
+  // Twist back-left-top corner
+  const y2 = state.top[0][0];
+  const b = state.back[0][2];
+  const l = state.left[0][0];
+  state.top[0][0] = l;
+  state.left[0][0] = b;
+  state.back[0][2] = y2;
+  
+  return state;
+};
+
+// Get the appropriate starting state for each stage
+export const getStageStartState = (stageId: number): CubeState => {
+  switch (stageId) {
+    case 1: return getStage1StartState();
+    case 2: return getStage2StartState();
+    case 3: return getStage3StartState();
+    case 4: return getStage4StartState();
+    case 5: return getStage5StartState();
+    case 6: return getStage6StartState();
+    case 7: return getStage7StartState();
+    default: return getSolvedCube();
+  }
+};
+
+// Create a scrambled cube for practice (random but solvable)
 export const createScrambledCube = (): CubeState => {
   let state = getSolvedCube();
   const moves: MoveName[] = ['R', "R'", 'L', "L'", 'U', "U'", 'D', "D'", 'F', "F'", 'B', "B'"];
@@ -225,15 +418,6 @@ export const createScrambledCube = (): CubeState => {
   }
   return state;
 };
-
-export const getSolvedCube = (): CubeState => ({
-  front: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.red)),
-  back: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.orange)),
-  left: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.blue)),
-  right: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.green)),
-  top: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.yellow)),
-  bottom: Array(3).fill(null).map(() => Array(3).fill(CUBE_COLORS.white)),
-});
 
 export const useCubeState = (initialState?: CubeState) => {
   const [cubeState, setCubeState] = useState<CubeState>(initialState || getSolvedCube());
