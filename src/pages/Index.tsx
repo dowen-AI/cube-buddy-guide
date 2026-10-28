@@ -5,6 +5,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { StageNavigation } from '@/components/StageNavigation';
 import { HeroSection } from '@/components/HeroSection';
 import { HowToUseSection } from '@/components/HowToUseSection';
+import { CubeSolverSection } from '@/components/CubeSolverSection';
 import { InteractiveStageCard } from '@/components/InteractiveStageCard';
 import { NotationReference } from '@/components/NotationReference';
 import { CelebrationModal } from '@/components/CelebrationModal';
@@ -98,6 +99,9 @@ const Index = () => {
 
         {/* How to Use */}
         <HowToUseSection />
+
+        {/* Instant Solver */}
+        <CubeSolverSection />
 
         {/* Stages */}
         <section className="py-16 px-4">
