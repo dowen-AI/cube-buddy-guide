@@ -1,8 +1,8 @@
 import { describe, test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import Cube from 'cubejs';
-import { cubeStateToFacelets, validateFacelets, solveCubeState } from './cubeSolver';
-import { getSolvedCube, executeMove, type MoveName } from '../hooks/useCubeState';
+import { cubeStateToFacelets, validateFacelets, solveCubeState } from '../src/lib/cubeSolver';
+import { getSolvedCube, executeMove, type MoveName } from '../src/hooks/useCubeState';
 
 describe('cube solver rules', () => {
   test('a solved cube needs no moves', async () => {
