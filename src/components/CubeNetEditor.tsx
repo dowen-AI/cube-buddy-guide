@@ -35,7 +35,7 @@ const Sticker = ({
     disabled={isCenter || disabled}
     onClick={onClick}
     className={cn(
-      'w-5 h-5 md:w-6 md:h-6 rounded-[3px] border-2 border-background/80 transition-transform',
+      'w-4 h-4 min-[380px]:w-5 min-[380px]:h-5 md:w-6 md:h-6 rounded-[3px] border-2 border-background/80 transition-transform',
       !isCenter && !disabled && 'hover:scale-110 cursor-pointer',
       isCenter && 'cursor-default ring-1 ring-inset ring-black/20',
     )}
