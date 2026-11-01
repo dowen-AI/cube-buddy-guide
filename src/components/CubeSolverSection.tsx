@@ -105,7 +105,7 @@ export const CubeSolverSection = () => {
 
         <div className="grid md:grid-cols-2 gap-8 items-start">
           {/* Input side */}
-          <div className="bg-card rounded-xl p-6 border border-border shadow-soft space-y-5">
+          <div className="min-w-0 bg-card rounded-xl p-4 sm:p-6 border border-border shadow-soft space-y-5">
             <h3 className="font-semibold text-foreground">1. Match Your Cube's Colors</h3>
             <CubeNetEditor cubeState={cubeState} onPaint={handlePaint} disabled={isSolving} />
             <ColorPalette selected={paintColor} onSelect={setPaintColor} />
@@ -134,7 +134,7 @@ export const CubeSolverSection = () => {
           </div>
 
           {/* Output side */}
-          <div className="bg-card rounded-xl p-6 border border-border shadow-soft space-y-4">
+          <div className="min-w-0 bg-card rounded-xl p-4 sm:p-6 border border-border shadow-soft space-y-4">
             <h3 className="font-semibold text-foreground">2. Follow the Solution</h3>
 
             <RubiksCube3D cubeState={previewState} autoRotate={!isPlaying} />
