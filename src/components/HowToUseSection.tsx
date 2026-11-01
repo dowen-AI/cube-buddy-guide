@@ -14,7 +14,7 @@ const tips = [
   {
     icon: CheckCircle2,
     title: "Mark Your Progress",
-    description: "Use the checkboxes to track which stages you've completed. Your progress is saved automatically."
+    description: "Finish a stage with the \"Complete Stage\" button at the end of its guide. Your progress shows in the bar at the top and is saved automatically."
   },
   {
     icon: Lightbulb,

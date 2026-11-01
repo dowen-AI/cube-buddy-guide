@@ -18,12 +18,23 @@ const COLOR_NAMES: Record<string, string> = {
   [CUBE_COLORS.orange]: 'Orange',
 };
 
+const FACE_LABELS: Record<FaceName, { letter: string; name: string }> = {
+  top: { letter: 'U', name: 'Top' },
+  left: { letter: 'L', name: 'Left' },
+  front: { letter: 'F', name: 'Front' },
+  right: { letter: 'R', name: 'Right' },
+  back: { letter: 'B', name: 'Back' },
+  bottom: { letter: 'D', name: 'Bottom' },
+};
+
 const Sticker = ({
+  label,
   color,
   isCenter,
   onClick,
   disabled,
 }: {
+  label: string;
   color: string;
   isCenter: boolean;
   onClick: () => void;
@@ -31,7 +42,7 @@ const Sticker = ({
 }) => (
   <button
     type="button"
-    aria-label={isCenter ? `${COLOR_NAMES[color] ?? color} center (fixed)` : `Set sticker to ${COLOR_NAMES[color] ?? color}`}
+    aria-label={label}
     disabled={isCenter || disabled}
     onClick={onClick}
     className={cn(
@@ -53,21 +64,38 @@ const Face = ({
   grid: string[][];
   onPaint: (row: number, col: number) => void;
   disabled?: boolean;
-}) => (
-  <div className="grid grid-cols-3 gap-[2px] p-[2px] bg-foreground/80 rounded-md">
-    {grid.map((row, r) =>
-      row.map((color, c) => (
-        <Sticker
-          key={`${face}-${r}-${c}`}
-          color={color}
-          isCenter={r === 1 && c === 1}
-          onClick={() => onPaint(r, c)}
-          disabled={disabled}
-        />
-      )),
-    )}
-  </div>
-);
+}) => {
+  const { letter, name } = FACE_LABELS[face];
+  return (
+    <div role="group" aria-label={`${name} face (${letter})`} className="flex flex-col items-center gap-0.5">
+      <span aria-hidden="true" className="whitespace-nowrap text-[10px] font-medium leading-none text-muted-foreground">
+        {letter} — {name}
+      </span>
+      <div className="grid grid-cols-3 gap-[2px] p-[2px] bg-foreground/80 rounded-md">
+        {grid.map((row, r) =>
+          row.map((color, c) => {
+            const isCenter = r === 1 && c === 1;
+            const colorName = COLOR_NAMES[color] ?? color;
+            return (
+              <Sticker
+                key={`${face}-${r}-${c}`}
+                label={
+                  isCenter
+                    ? `${name} face center, ${colorName} (fixed)`
+                    : `${name} face, row ${r + 1}, column ${c + 1}, currently ${colorName}`
+                }
+                color={color}
+                isCenter={isCenter}
+                onClick={() => onPaint(r, c)}
+                disabled={disabled}
+              />
+            );
+          }),
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const CubeNetEditor = ({ cubeState, onPaint, disabled }: CubeNetEditorProps) => {
   const face = (name: FaceName) => (
@@ -104,6 +132,7 @@ export const ColorPalette = ({
         key={color}
         type="button"
         aria-label={`Paint with ${name}`}
+        aria-pressed={selected === color}
         onClick={() => onSelect(color)}
         className={cn(
           'w-9 h-9 rounded-full border-2 transition-all',

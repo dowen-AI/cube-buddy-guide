@@ -7,10 +7,10 @@ const notations = [
   { symbol: "R'", meaning: 'Right face counter-clockwise', color: 'cube-green' },
   { symbol: 'L', meaning: 'Left face clockwise', color: 'cube-blue' },
   { symbol: "L'", meaning: 'Left face counter-clockwise', color: 'cube-blue' },
-  { symbol: 'U', meaning: 'Up (top) face clockwise', color: 'cube-white' },
-  { symbol: "U'", meaning: 'Up (top) face counter-clockwise', color: 'cube-white' },
-  { symbol: 'D', meaning: 'Down (bottom) face clockwise', color: 'cube-yellow' },
-  { symbol: "D'", meaning: 'Down (bottom) face counter-clockwise', color: 'cube-yellow' },
+  { symbol: 'U', meaning: 'Up (top) face clockwise', color: 'cube-yellow' },
+  { symbol: "U'", meaning: 'Up (top) face counter-clockwise', color: 'cube-yellow' },
+  { symbol: 'D', meaning: 'Down (bottom) face clockwise', color: 'cube-white' },
+  { symbol: "D'", meaning: 'Down (bottom) face counter-clockwise', color: 'cube-white' },
   { symbol: 'F', meaning: 'Front face clockwise', color: 'cube-red' },
   { symbol: "F'", meaning: 'Front face counter-clockwise', color: 'cube-red' },
   { symbol: 'B', meaning: 'Back face clockwise', color: 'cube-orange' },
@@ -22,7 +22,7 @@ export const NotationReference = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <section className="py-16 px-4 bg-muted/30">
+    <section id="notation" className="py-16 px-4 bg-muted/30 scroll-mt-32">
       <div className="max-w-4xl mx-auto">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -35,7 +35,7 @@ export const NotationReference = () => {
                 Algorithm Notation Reference
               </h2>
               <p className="text-sm text-muted-foreground">
-                Optional: Learn the standard cube notation for advanced solving
+                What letters like R, U' and F2 mean — used by the move buttons and the solver
               </p>
             </div>
           </div>
@@ -49,9 +49,9 @@ export const NotationReference = () => {
         {isOpen && (
           <div className="mt-4 p-6 bg-card rounded-xl border border-border shadow-soft animate-fade-in">
             <p className="text-muted-foreground mb-6">
-              While this guide uses simple language like "turn the right face clockwise," 
-              experienced cubers use a shorthand notation. Here's a reference if you want 
-              to learn it:
+              The move buttons and the solver use the standard shorthand cubers share. Each
+              letter is one face. A letter alone means turn that face clockwise, as if you were
+              looking straight at it (for B, picture looking at the cube from behind).
             </p>
             
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">

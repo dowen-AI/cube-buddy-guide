@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 
 export const HeroSection = () => {
   const scrollToContent = () => {
-    document.getElementById('how-to-use')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('stage-1')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
@@ -24,8 +24,8 @@ export const HeroSection = () => {
 
         {/* Subtitle */}
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          A simple, visual, step-by-step guide for absolute beginners. 
-          No confusing notation. No frustration. Just clear instructions and 
+          A simple, visual, step-by-step guide for absolute beginners.
+          Notation explained in plain English. No frustration. Just clear instructions and
           interactive 3D cubes to guide you every step of the way.
         </p>
 

@@ -1,38 +1,53 @@
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { Check, ChevronLeft, ChevronRight, RotateCcw, Play, Eye, EyeOff } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ChevronUp, RotateCcw, Play, Eye, EyeOff } from 'lucide-react';
 import { InteractiveCube3D } from './InteractiveCube3D';
 import { MoveButtons } from './MoveButtons';
 import { StepGoalPreview } from './StepGoalPreview';
+import { NotationLegend } from './NotationLegend';
 import { useCubeState, getStageStartState, MoveName } from '@/hooks/useCubeState';
-import { InteractiveStage, MicroStep, FaceName } from '@/data/interactiveStagesData';
+import { InteractiveStage, FaceName } from '@/data/interactiveStagesData';
 
 interface InteractiveStageCardProps {
   stage: InteractiveStage;
   isComplete: boolean;
   onToggleComplete: () => void;
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
 }
 
 export const InteractiveStageCard = ({
   stage,
   isComplete,
   onToggleComplete,
+  isOpen,
+  onOpen,
+  onClose,
 }: InteractiveStageCardProps) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const { cubeState, performMove, undoMove, resetCube, moveHistory } = useCubeState(
     getStageStartState(stage.id)
   );
-  const [isPracticing, setIsPracticing] = useState(false);
   const [showGoalPreview, setShowGoalPreview] = useState(true);
 
   const currentStep = stage.steps[currentStepIndex];
   const isLastStep = currentStepIndex === stage.steps.length - 1;
   const isFirstStep = currentStepIndex === 0;
 
+  // Steps without a manual check ("Complete the move to continue") have no Next
+  // button, so making their required move is what advances them.
+  const applyMove = useCallback((move: MoveName) => {
+    performMove(move);
+    if (!currentStep.isManualCheck && !isLastStep) {
+      setCurrentStepIndex(prev => prev + 1);
+    }
+  }, [currentStep, isLastStep, performMove]);
+
   const handleMove = useCallback((move: MoveName) => {
     if (!currentStep.allowedMoves.includes(move)) return;
-    performMove(move);
-  }, [currentStep, performMove]);
+    applyMove(move);
+  }, [currentStep, applyMove]);
 
   const handleFaceClick = useCallback((face: FaceName) => {
     if (!currentStep.allowedFaces.includes(face)) return;
@@ -48,9 +63,9 @@ export const InteractiveStageCard = ({
     };
     
     if (currentStep.allowedMoves.includes(moveMap[face])) {
-      performMove(moveMap[face]);
+      applyMove(moveMap[face]);
     }
-  }, [currentStep, performMove]);
+  }, [currentStep, applyMove]);
 
   const goToNextStep = () => {
     if (!isLastStep) {
@@ -65,9 +80,9 @@ export const InteractiveStageCard = ({
   };
 
   const handleStartPractice = () => {
-    setIsPracticing(true);
     setCurrentStepIndex(0);
     resetCube(getStageStartState(stage.id));
+    onOpen();
   };
 
   const handleReset = () => {
@@ -78,7 +93,7 @@ export const InteractiveStageCard = ({
     <section
       id={`stage-${stage.id}`}
       className={cn(
-        "scroll-mt-24 bg-card rounded-2xl border border-border shadow-card overflow-hidden transition-all duration-300",
+        "scroll-mt-32 bg-card rounded-2xl border border-border shadow-card overflow-hidden transition-all duration-300",
         isComplete && "ring-2 ring-cube-green/30"
       )}
     >
@@ -103,12 +118,22 @@ export const InteractiveStageCard = ({
               <p className="text-muted-foreground mt-1">{stage.description}</p>
             </div>
           </div>
+          {isOpen && (
+            <button
+              onClick={onClose}
+              aria-label={`Close the ${stage.title} guide`}
+              className="flex shrink-0 items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ChevronUp className="h-4 w-4" />
+              Close guide
+            </button>
+          )}
         </div>
       </div>
 
       {/* Content */}
       <div className="p-6 md:p-8">
-        {!isPracticing ? (
+        {!isOpen ? (
           // Start screen
           <div className="text-center space-y-6">
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-6">
@@ -133,6 +158,8 @@ export const InteractiveStageCard = ({
         ) : (
           // Interactive practice mode
           <div className="space-y-6">
+            <NotationLegend />
+
             {/* Step Progress Bar */}
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
