@@ -27,8 +27,8 @@ const MOVE_DESCRIPTIONS: Record<MoveName, { label: string; direction: string; ic
   'F': { label: 'Front CW', direction: 'Turn clockwise', icon: 'right' },
   "F'": { label: 'Front CCW', direction: 'Turn counter-clockwise', icon: 'left' },
   'F2': { label: 'Front ×2', direction: '180° flip', icon: 'flip' },
-  'B': { label: 'Back CCW', direction: 'Turn counter-clockwise', icon: 'left' },
-  "B'": { label: 'Back CW', direction: 'Turn clockwise', icon: 'right' },
+  'B': { label: 'Back CW', direction: 'Turn clockwise (as seen from behind)', icon: 'right' },
+  "B'": { label: 'Back CCW', direction: 'Turn counter-clockwise (as seen from behind)', icon: 'left' },
   'B2': { label: 'Back ×2', direction: '180° flip', icon: 'flip' },
 };
 

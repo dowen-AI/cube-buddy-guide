@@ -114,10 +114,10 @@ export const interactiveStagesData: InteractiveStage[] = [
       {
         id: '2-4',
         instruction: 'THE SLEDGEHAMMER (2/4): Turn the TOP layer LEFT.',
-        allowedMoves: ["U'"],
+        allowedMoves: ['U'],
         allowedFaces: ['top'],
         highlightFaces: ['top'],
-        stopCondition: "U' move complete",
+        stopCondition: 'U move complete',
       },
       {
         id: '2-5',
@@ -130,10 +130,10 @@ export const interactiveStagesData: InteractiveStage[] = [
       {
         id: '2-6',
         instruction: 'THE SLEDGEHAMMER (4/4): Turn the TOP layer RIGHT.',
-        allowedMoves: ['U'],
+        allowedMoves: ["U'"],
         allowedFaces: ['top'],
         highlightFaces: ['top'],
-        stopCondition: 'U move complete',
+        stopCondition: "U' move complete",
       },
       {
         id: '2-7',

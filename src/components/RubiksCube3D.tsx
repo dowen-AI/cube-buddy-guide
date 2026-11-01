@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
+import { useInView } from '@/hooks/useInView';
 
 interface CubeState {
   // Face colors: front, back, left, right, top, bottom (each is 3x3 array)
@@ -189,9 +190,10 @@ export const RubiksCube3D = ({
   highlightPieces = [],
   className = ''
 }: RubiksCube3DProps) => {
+  const { ref, inView } = useInView<HTMLDivElement>();
   return (
-    <div className={`w-full h-64 md:h-80 ${className}`}>
-      <Canvas camera={{ position: [4, 3, 4], fov: 45 }}>
+    <div ref={ref} className={`w-full h-64 md:h-80 ${className}`}>
+      <Canvas camera={{ position: [4, 3, 4], fov: 45 }} frameloop={inView ? 'always' : 'never'}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 10, 5]} intensity={1} />
         <directionalLight position={[-10, -10, -5]} intensity={0.3} />

@@ -87,6 +87,20 @@ const EDGES: { indices: [number, number]; colors: [FaceLetter, FaceLetter] }[] =
 
 const CENTER_INDEX: Record<FaceLetter, number> = { U: 4, R: 13, F: 22, D: 31, L: 40, B: 49 };
 
+const FACE_NAME: Record<FaceLetter, string> = {
+  U: 'top', R: 'right', F: 'front', D: 'bottom', L: 'left', B: 'back',
+};
+
+const colorName = (hex: string) =>
+  Object.entries(CUBE_COLORS).find(([, value]) => value === hex)?.[0] ?? 'unknown';
+
+// Names a sticker color by the face whose center currently shows it,
+// e.g. "yellow" + "top", so errors never expose bare U/R/F/D/L/B letters.
+const describeColor = (facelets: string, letter: FaceLetter) => {
+  const face = (Object.keys(CENTER_INDEX) as FaceLetter[]).find((f) => facelets[CENTER_INDEX[f]] === letter) ?? letter;
+  return { color: colorName(LETTER_TO_COLOR[letter]), face: FACE_NAME[face] };
+};
+
 const permutationParity = (perm: number[]): number => {
   const visited = new Array(perm.length).fill(false);
   let parity = 0;
@@ -124,7 +138,11 @@ export const validateFacelets = (facelets: string): { valid: boolean; error?: st
   for (const letter of Object.keys(LETTER_BASE) as FaceLetter[]) {
     const count = facelets.split('').filter((ch) => ch === letter).length;
     if (count !== 9) {
-      return { valid: false, error: `Expected 9 ${letter} stickers, found ${count}. Double-check your colors.` };
+      const { color, face } = describeColor(facelets, letter);
+      return {
+        valid: false,
+        error: `Expected 9 ${color} stickers (the ${face} face's center color), found ${count}. Double-check your colors.`,
+      };
     }
     if (facelets[CENTER_INDEX[letter]] !== letter) {
       return { valid: false, error: 'Center stickers must stay fixed — they define each face.' };

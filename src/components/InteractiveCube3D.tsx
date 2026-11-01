@@ -4,6 +4,7 @@ import { OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { CubeState, MoveName, CUBE_COLORS } from '@/hooks/useCubeState';
 import { FaceName } from '@/data/interactiveStagesData';
+import { useInView } from '@/hooks/useInView';
 
 interface CubeletProps {
   position: [number, number, number];
@@ -256,9 +257,10 @@ export const InteractiveCube3D = ({
   autoRotate = false,
   className = '',
 }: InteractiveCube3DProps) => {
+  const { ref, inView } = useInView<HTMLDivElement>();
   return (
-    <div className={`w-full h-64 md:h-80 ${className}`}>
-      <Canvas camera={{ position: [4, 3, 4], fov: 45 }}>
+    <div ref={ref} className={`w-full h-64 md:h-80 ${className}`}>
+      <Canvas camera={{ position: [4, 3, 4], fov: 45 }} frameloop={inView ? 'always' : 'never'}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 10, 5]} intensity={1} />
         <directionalLight position={[-10, -10, -5]} intensity={0.3} />

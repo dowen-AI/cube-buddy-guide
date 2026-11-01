@@ -53,9 +53,9 @@ const STEP_GOALS: Record<string, { title: string; description: string; visual: '
   '2-1': { title: '🎯 Find Corner', description: 'Locate white corner above its slot', visual: null },
   '2-2': { title: '🎯 Position White', description: 'White sticker faces front or right', visual: null },
   '2-3': { title: '🔨 Sledgehammer 1/4', description: 'R - Right face up', visual: null },
-  '2-4': { title: '🔨 Sledgehammer 2/4', description: "U' - Top layer left", visual: null },
+  '2-4': { title: '🔨 Sledgehammer 2/4', description: 'U - Top layer left', visual: null },
   '2-5': { title: '🔨 Sledgehammer 3/4', description: "R' - Right face down", visual: null },
-  '2-6': { title: '🔨 Sledgehammer 4/4', description: 'U - Top layer right', visual: null },
+  '2-6': { title: '🔨 Sledgehammer 4/4', description: "U' - Top layer right", visual: null },
   '2-7': { title: '🔍 Check Corner', description: 'Is the white corner in place?', visual: null },
   '2-8': { title: '✅ First Layer Done', description: 'White face + first layer complete', visual: 'first-layer' },
   
