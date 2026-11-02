@@ -1,220 +1,218 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Wand2, Shuffle, RotateCcw, ChevronLeft, ChevronRight, Play, Pause, PartyPopper } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { ArrowLeft, ArrowRight, BookOpen, PartyPopper, RotateCcw, Shuffle, Wand2 } from 'lucide-react';
+import { CubeState, MoveName, CUBE_COLORS, getSolvedCube, createScrambledCube } from '@/hooks/useCubeState';
 import {
-  CubeState,
-  MoveName,
-  CUBE_COLORS,
-  executeMove,
-  getSolvedCube,
-  createScrambledCube,
-} from '@/hooks/useCubeState';
-import { RubiksCube3D } from '@/components/RubiksCube3D';
-import { CubeNetEditor, ColorPalette } from '@/components/CubeNetEditor';
-import { solveCubeState, SolverError } from '@/lib/cubeSolver';
+  COLOR_NAMES,
+  ColorPalette,
+  FACE_LABELS,
+  FacePainter,
+  NetOverview,
+  PAINT_STEPS,
+  stickerKey,
+  type FaceName,
+} from '@/components/CubeNetEditor';
+import { PaintingGuide } from '@/components/solver/PaintingGuide';
+import { SolutionPlayer } from '@/components/solver/SolutionPlayer';
+import { faceletToSticker, solveCubeState, SolverError } from '@/lib/cubeSolver';
 
-type FaceName = keyof CubeState;
+interface CubeSolverSectionProps {
+  // Lets the page shrink its header while the solution is on screen, like an open guide.
+  onPlayingChange?: (playing: boolean) => void;
+}
 
-const PLAY_INTERVAL_MS = 700;
-
-export const CubeSolverSection = () => {
+export const CubeSolverSection = ({ onPlayingChange }: CubeSolverSectionProps) => {
   const [cubeState, setCubeState] = useState<CubeState>(getSolvedCube());
   const [paintColor, setPaintColor] = useState<string>(CUBE_COLORS.red);
+  const [guideDone, setGuideDone] = useState(false);
+  const [faceIdx, setFaceIdx] = useState(0);
+  const [visited, setVisited] = useState<Set<FaceName>>(new Set());
   const [solution, setSolution] = useState<MoveName[] | null>(null);
-  const [stepIndex, setStepIndex] = useState(0);
+  const [solvedState, setSolvedState] = useState<CubeState | null>(null);
   const [isSolving, setIsSolving] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; highlight: number[] } | null>(null);
 
-  const previewState = useMemo(() => {
-    if (!solution) return cubeState;
-    let state = cubeState;
-    for (let i = 0; i < stepIndex; i++) {
-      state = executeMove(state, solution[i]);
+  const playing = solution !== null && solution.length > 0;
+  useEffect(() => onPlayingChange?.(playing), [playing, onPlayingChange]);
+
+  const highlight = useMemo(() => {
+    const set = new Set<string>();
+    for (const i of error?.highlight ?? []) {
+      const { face, r, c } = faceletToSticker(i);
+      set.add(stickerKey(face, r, c));
     }
-    return state;
-  }, [cubeState, solution, stepIndex]);
+    return set;
+  }, [error]);
 
-  useEffect(() => {
-    if (!isPlaying || !solution) return;
-    if (stepIndex >= solution.length) {
-      setIsPlaying(false);
-      return;
-    }
-    const timer = setTimeout(() => setStepIndex((i) => i + 1), PLAY_INTERVAL_MS);
-    return () => clearTimeout(timer);
-  }, [isPlaying, solution, stepIndex]);
+  const step = PAINT_STEPS[faceIdx];
+  const face = step.face;
 
-  const handlePaint = (face: FaceName, row: number, col: number) => {
+  const goToFace = (f: FaceName) => {
+    setVisited((v) => new Set(v).add(face));
+    setFaceIdx(PAINT_STEPS.findIndex((s) => s.face === f));
+  };
+
+  const clearResult = () => {
+    setSolution(null);
+    setSolvedState(null);
+    setError(null);
+  };
+
+  const handlePaint = (r: number, c: number) => {
     setCubeState((prev) => {
-      const next: CubeState = {
-        ...prev,
-        [face]: prev[face].map((r) => [...r]),
-      };
-      next[face][row][col] = paintColor;
+      const next: CubeState = { ...prev, [face]: prev[face].map((row) => [...row]) };
+      next[face][r][c] = paintColor;
       return next;
     });
-    setSolution(null);
-    setError(null);
+    clearResult();
   };
 
   const handleScramble = () => {
     setCubeState(createScrambledCube());
-    setSolution(null);
-    setError(null);
-    setStepIndex(0);
-    setIsPlaying(false);
+    clearResult();
   };
 
   const handleReset = () => {
     setCubeState(getSolvedCube());
-    setSolution(null);
-    setError(null);
-    setStepIndex(0);
-    setIsPlaying(false);
+    setVisited(new Set());
+    setFaceIdx(0);
+    clearResult();
   };
 
   const handleSolve = async () => {
     setIsSolving(true);
-    setError(null);
-    setSolution(null);
-    setStepIndex(0);
+    clearResult();
     try {
       const moves = await solveCubeState(cubeState);
+      setSolvedState(cubeState);
       setSolution(moves);
     } catch (err) {
-      setError(err instanceof SolverError ? err.message : 'Something went wrong while solving. Please try again.');
+      setError(
+        err instanceof SolverError
+          ? { message: err.message, highlight: err.highlight }
+          : { message: 'Something went wrong while solving. Please try again.', highlight: [] },
+      );
     } finally {
       setIsSolving(false);
     }
   };
 
-  const isSolvedResult = solution !== null && stepIndex === solution.length;
+  const showFirstProblem = () => {
+    if (!error?.highlight.length) return;
+    goToFace(faceletToSticker(error.highlight[0]).face);
+    document.getElementById('solver-painter')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
-    <section id="solver" className="py-16 px-4 bg-muted/30 border-y border-border">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold font-display text-foreground mb-3">Just Want the Solution?</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Enter your cube's exact colors below and get the precise moves to solve it —
-            no need to learn the method yourself.
+    <section id="solver" className="scroll-mt-16 border-y border-border bg-muted/30 px-4 py-16">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8 text-center">
+          <h2 className="mb-3 font-display text-3xl font-bold text-foreground">Just Want the Solution?</h2>
+          <p className="mx-auto max-w-2xl text-muted-foreground">
+            Copy your cube's colors into the app, face by face, then follow the moves one at a time — no need to learn
+            the method yourself.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 items-start">
-          {/* Input side */}
-          <div className="min-w-0 bg-card rounded-xl p-4 sm:p-6 border border-border shadow-soft space-y-5">
-            <h3 className="font-semibold text-foreground">1. Match Your Cube's Colors</h3>
-            <CubeNetEditor cubeState={cubeState} onPaint={handlePaint} disabled={isSolving} />
-            <ColorPalette selected={paintColor} onSelect={setPaintColor} />
-
-            <div className="flex flex-wrap gap-2 justify-center pt-2">
-              <Button variant="outline" size="sm" onClick={handleScramble} disabled={isSolving}>
-                <Shuffle className="w-4 h-4" />
-                Try a Random Scramble
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleReset} disabled={isSolving}>
-                <RotateCcw className="w-4 h-4" />
-                Reset
-              </Button>
+        {playing && solvedState ? (
+          <SolutionPlayer
+            start={solvedState}
+            moves={solution}
+            onEdit={() => setSolution(null)}
+            onNewCube={() => { handleReset(); setGuideDone(true); }}
+          />
+        ) : (
+          <div className="grid items-start gap-6 md:grid-cols-2">
+            <div id="solver-painter" className="min-w-0 scroll-mt-36 space-y-4 rounded-xl border border-border bg-card p-3 shadow-soft sm:p-5">
+              <h3 className="font-semibold text-foreground">1. Copy your cube's colors</h3>
+              {!guideDone ? (
+                <PaintingGuide onDone={() => setGuideDone(true)} />
+              ) : (
+                <>
+                  <div className="space-y-1" data-testid="paint-step">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      Face {faceIdx + 1} of {PAINT_STEPS.length}: {FACE_LABELS[face].name} ({step.center} center)
+                    </p>
+                    <p className="font-medium text-foreground">{step.hold}</p>
+                    <p className="text-sm text-muted-foreground">{step.lineUp}</p>
+                  </div>
+                  <FacePainter face={face} grid={cubeState[face]} onPaint={handlePaint} highlight={highlight} disabled={isSolving} />
+                  <div className="space-y-1">
+                    <p className="text-center text-sm text-muted-foreground">
+                      Painting with <strong className="text-foreground">{COLOR_NAMES[paintColor]}</strong> — pick a color, then tap stickers
+                    </p>
+                    <ColorPalette selected={paintColor} onSelect={setPaintColor} />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => goToFace(PAINT_STEPS[faceIdx - 1].face)}
+                      disabled={faceIdx === 0}
+                      className="flex min-h-12 items-center gap-1 rounded-xl border border-border px-4 font-medium disabled:opacity-40"
+                    >
+                      <ArrowLeft className="h-4 w-4" /> Back
+                    </button>
+                    {faceIdx < PAINT_STEPS.length - 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => goToFace(PAINT_STEPS[faceIdx + 1].face)}
+                        className="flex min-h-12 flex-1 items-center justify-center gap-1 rounded-xl bg-primary px-4 font-semibold text-primary-foreground hover:bg-primary/90"
+                      >
+                        Next face: {FACE_LABELS[PAINT_STEPS[faceIdx + 1].face].name} <ArrowRight className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <p className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-muted px-3 text-center text-sm font-medium">
+                        Last face — now tap Solve below
+                      </p>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => setGuideDone(false)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted">
+                    <BookOpen className="h-4 w-4" /> How to copy your cube (guide)
+                  </button>
+                </>
+              )}
             </div>
 
-            <Button className="w-full" onClick={handleSolve} disabled={isSolving}>
-              <Wand2 className="w-4 h-4" />
-              {isSolving ? 'Solving…' : 'Solve My Cube'}
-            </Button>
-
-            {error && (
-              <p className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
-          </div>
-
-          {/* Output side */}
-          <div className="min-w-0 bg-card rounded-xl p-4 sm:p-6 border border-border shadow-soft space-y-4">
-            <h3 className="font-semibold text-foreground">2. Follow the Solution</h3>
-
-            <RubiksCube3D cubeState={previewState} autoRotate={!isPlaying} />
-
-            {!solution && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Set up your cube on the left, then tap <strong>Solve My Cube</strong> to see the
-                exact moves here, with a 3D preview you can step through.
-              </p>
-            )}
-
-            {solution && solution.length === 0 && (
-              <p className="text-sm text-center text-primary font-medium flex items-center justify-center gap-2">
-                <PartyPopper className="w-4 h-4" /> This cube is already solved!
-              </p>
-            )}
-
-            {solution && solution.length > 0 && (
-              <>
-                <div className="flex flex-wrap gap-1.5 justify-center">
-                  {solution.map((move, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setIsPlaying(false);
-                        setStepIndex(i + 1);
-                      }}
-                      className={cn(
-                        'font-mono text-sm px-2.5 py-1 rounded-md border transition-colors',
-                        i < stepIndex && 'bg-primary/10 border-primary/30 text-primary/70',
-                        i === stepIndex && 'bg-primary text-primary-foreground border-primary shadow-md scale-105',
-                        i > stepIndex && 'bg-muted border-border text-muted-foreground',
-                      )}
-                    >
-                      {move}
+            <div className="min-w-0 space-y-4 rounded-xl border border-border bg-card p-3 shadow-soft sm:p-5">
+              <h3 className="font-semibold text-foreground">2. Check, then solve</h3>
+              <div className="space-y-1">
+                <NetOverview cubeState={cubeState} current={face} onSelect={(f) => { setGuideDone(true); goToFace(f); }} highlight={highlight} done={visited} />
+                <p className="text-center text-xs text-muted-foreground">Your whole cube, unfolded. Tap a face to paint it.</p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button type="button" onClick={handleScramble} disabled={isSolving} className="flex min-h-12 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted">
+                  <Shuffle className="h-4 w-4" /> Try a random scramble
+                </button>
+                <button type="button" onClick={handleReset} disabled={isSolving} className="flex min-h-12 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted">
+                  <RotateCcw className="h-4 w-4" /> Reset
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={handleSolve}
+                disabled={isSolving}
+                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary text-lg font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                <Wand2 className="h-5 w-5" /> {isSolving ? 'Solving…' : 'Solve my cube'}
+              </button>
+              {error ? (
+                <div role="alert" data-testid="solver-error" className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-foreground">
+                  <p className="font-semibold text-destructive">These colors can't be a real cube yet.</p>
+                  <p>{error.message}</p>
+                  {error.highlight.length ? (
+                    <button type="button" onClick={showFirstProblem} className="flex min-h-12 items-center rounded-lg border border-destructive/40 bg-background px-3 font-medium">
+                      Show me the stickers to check
                     </button>
-                  ))}
+                  ) : null}
                 </div>
-
-                <div className="flex items-center justify-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setIsPlaying(false);
-                      setStepIndex((i) => Math.max(0, i - 1));
-                    }}
-                    disabled={stepIndex === 0}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    onClick={() => setIsPlaying((p) => !p)}
-                    disabled={isSolvedResult}
-                  >
-                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setIsPlaying(false);
-                      setStepIndex((i) => Math.min(solution.length, i + 1));
-                    }}
-                    disabled={isSolvedResult}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                <p className="text-xs text-center text-muted-foreground">
-                  Step {stepIndex} of {solution.length}
-                  {isSolvedResult && ' — Solved! 🎉'}
+              ) : null}
+              {solution && solution.length === 0 ? (
+                <p className="flex items-center justify-center gap-2 text-center font-medium text-primary" role="status">
+                  <PartyPopper className="h-4 w-4" /> This cube is already solved!
                 </p>
-              </>
-            )}
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );

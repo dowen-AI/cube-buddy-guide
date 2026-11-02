@@ -3,7 +3,11 @@ import { CubeState, CUBE_COLORS, MoveName } from '@/hooks/useCubeState';
 
 type FaceLetter = 'U' | 'R' | 'F' | 'D' | 'L' | 'B';
 
-export class SolverError extends Error {}
+export class SolverError extends Error {
+  constructor(message: string, readonly highlight: number[] = []) {
+    super(message);
+  }
+}
 
 // Our internal face-color scheme (fixed by getSolvedCube in useCubeState.ts):
 // top=yellow(U), right=green(R), front=red(F), bottom=white(D), left=blue(L), back=orange(B)
@@ -101,6 +105,30 @@ const describeColor = (facelets: string, letter: FaceLetter) => {
   return { color: colorName(LETTER_TO_COLOR[letter]), face: FACE_NAME[face] };
 };
 
+const letterColor = (l: FaceLetter) => colorName(LETTER_TO_COLOR[l]);
+const listColors = (ls: FaceLetter[]) => ls.map(letterColor).join(', ');
+const OPPOSITE: Record<FaceLetter, FaceLetter> = { U: 'D', D: 'U', R: 'L', L: 'R', F: 'B', B: 'F' };
+
+const CORNER_NAMES = ['top-front-right', 'top-front-left', 'top-back-left', 'top-back-right', 'bottom-front-right', 'bottom-front-left', 'bottom-back-left', 'bottom-back-right'];
+const EDGE_NAMES = ['top-right', 'top-front', 'top-left', 'top-back', 'bottom-right', 'bottom-front', 'bottom-left', 'bottom-back', 'front-right', 'front-left', 'back-left', 'back-right'];
+const cornerWhere = (slot: number) => `the ${CORNER_NAMES[slot]} corner (where the ${CORNER_NAMES[slot].split('-').join(', ').replace(/, ([^,]*)$/, ' and $1')} faces meet)`;
+const edgeWhere = (slot: number) => `the ${EDGE_NAMES[slot]} edge (between the ${EDGE_NAMES[slot].replace('-', ' and ')} faces)`;
+
+// Facelet index (0-53) -> which face/row/column of the net it is.
+export const faceletToSticker = (i: number): { face: keyof CubeState; r: number; c: number } => ({
+  face: FACE_ORDER[Math.floor(i / 9)].face,
+  r: Math.floor((i % 9) / 3),
+  c: i % 3,
+});
+
+const pieceProblem = (actual: FaceLetter[]): string | null => {
+  const dup = actual.find((l, i) => actual.indexOf(l) !== i);
+  if (dup) return `shows two ${letterColor(dup)} stickers, but no piece has the same color twice`;
+  const opp = actual.find((l) => actual.includes(OPPOSITE[l]));
+  if (opp) return `shows ${letterColor(opp)} and ${letterColor(OPPOSITE[opp])} together, but those colors are on opposite sides of the cube, so they're never on the same piece`;
+  return null;
+};
+
 const permutationParity = (perm: number[]): number => {
   const visited = new Array(perm.length).fill(false);
   let parity = 0;
@@ -130,26 +158,39 @@ const sameSet = <T,>(a: T[], b: T[]): boolean => {
  * This catches manual color-entry mistakes that would otherwise make the
  * solver hang, throw, or silently return a bogus solution.
  */
-export const validateFacelets = (facelets: string): { valid: boolean; error?: string } => {
+const capitalize = (t: string) => t[0].toUpperCase() + t.slice(1);
+
+export const validateFacelets = (facelets: string): { valid: boolean; error?: string; highlight?: number[] } => {
   if (facelets.length !== 54 || /[^URFDLB]/.test(facelets)) {
     return { valid: false, error: 'Cube data is corrupted.' };
   }
 
-  for (const letter of Object.keys(LETTER_BASE) as FaceLetter[]) {
-    const count = facelets.split('').filter((ch) => ch === letter).length;
-    if (count !== 9) {
-      const { color, face } = describeColor(facelets, letter);
-      return {
-        valid: false,
-        error: `Expected 9 ${color} stickers (the ${face} face's center color), found ${count}. Double-check your colors.`,
-      };
-    }
+  const letters = Object.keys(LETTER_BASE) as FaceLetter[];
+  const counts = letters.map((l) => ({ l, n: facelets.split('').filter((ch) => ch === l).length }));
+  const off = counts.filter((x) => x.n !== 9);
+  if (off.length) {
+    const describe = ({ l, n }: { l: FaceLetter; n: number }) => {
+      const { color, face } = describeColor(facelets, l);
+      return `${n} ${color} (the ${face} center's color)`;
+    };
+    const over = off.filter((x) => x.n > 9);
+    const under = off.filter((x) => x.n < 9);
+    const hint = over.length === 1 && under.length === 1 && over[0].n === 10 && under[0].n === 8
+      ? ` Most likely one sticker you painted ${letterColor(over[0].l)} is really ${letterColor(under[0].l)} — look for it on your cube.`
+      : ` Compare each face of the net with your cube and fix the stickers in those colors.`;
+    return {
+      valid: false,
+      error: `Each color must appear exactly 9 times, but you have ${off.map(describe).join(' and ')}.${hint}`,
+    };
+  }
+  for (const letter of letters) {
     if (facelets[CENTER_INDEX[letter]] !== letter) {
       return { valid: false, error: 'Center stickers must stay fixed — they define each face.' };
     }
   }
 
   const usedCorners = new Set<number>();
+  const cornerUsedAt = new Map<number, number>();
   const cp: number[] = [];
   const co: number[] = [];
   for (let slot = 0; slot < CORNERS.length; slot++) {
@@ -173,14 +214,28 @@ export const validateFacelets = (facelets: string): { valid: boolean; error?: st
     }
 
     if (matchIndex === -1) {
-      return { valid: false, error: 'One of the corner pieces has an impossible color combination.' };
+      const where = cornerWhere(slot);
+      const seen = `shows ${listColors(actual)}`;
+      const problem = pieceProblem(actual);
+      const twin = CORNERS.findIndex((k) => sameSet(actual, k.colors));
+      const message = problem
+        ? `${capitalize(where)} ${problem}. Re-check those three stickers on your cube.`
+        : twin !== -1 && cornerUsedAt.has(twin)
+          ? `You painted two corners with ${listColors(actual)}: ${cornerWhere(cornerUsedAt.get(twin)!)} and ${where}. A cube has only one of each — re-check both corners.`
+          : twin !== -1
+            ? `${capitalize(where)} ${seen} — real colors, but in mirror-image order, so two of its stickers are swapped. Re-check those three stickers.`
+            : `${capitalize(where)} ${seen}, but no corner on a real cube has those three colors. Re-check those three stickers.`;
+      const extra = twin !== -1 && cornerUsedAt.has(twin) ? CORNERS[cornerUsedAt.get(twin)!].indices : [];
+      return { valid: false, error: message, highlight: [...indices, ...extra] };
     }
     usedCorners.add(matchIndex);
+    cornerUsedAt.set(matchIndex, slot);
     cp[slot] = matchIndex;
     co[slot] = matchOri;
   }
 
   const usedEdges = new Set<number>();
+  const edgeUsedAt = new Map<number, number>();
   const ep: number[] = [];
   const eo: number[] = [];
   for (let slot = 0; slot < EDGES.length; slot++) {
@@ -204,9 +259,19 @@ export const validateFacelets = (facelets: string): { valid: boolean; error?: st
     }
 
     if (matchIndex === -1) {
-      return { valid: false, error: 'One of the edge pieces has an impossible color combination.' };
+      const where = edgeWhere(slot);
+      const problem = pieceProblem(actual);
+      const twin = EDGES.findIndex((k) => sameSet(actual, k.colors));
+      const message = problem
+        ? `${capitalize(where)} ${problem}. Re-check those two stickers on your cube.`
+        : twin !== -1 && edgeUsedAt.has(twin)
+          ? `You painted two edges with ${listColors(actual)}: ${edgeWhere(edgeUsedAt.get(twin)!)} and ${where}. A cube has only one of each — re-check both edges.`
+          : `${capitalize(where)} shows ${listColors(actual)}, but no edge on a real cube has those colors. Re-check those two stickers.`;
+      const extra = twin !== -1 && edgeUsedAt.has(twin) ? EDGES[edgeUsedAt.get(twin)!].indices : [];
+      return { valid: false, error: message, highlight: [...indices, ...extra] };
     }
     usedEdges.add(matchIndex);
+    edgeUsedAt.set(matchIndex, slot);
     ep[slot] = matchIndex;
     eo[slot] = matchOri;
   }
@@ -214,13 +279,13 @@ export const validateFacelets = (facelets: string): { valid: boolean; error?: st
   const cornerTwist = co.reduce((a, b) => a + b, 0) % 3;
   const edgeFlip = eo.reduce((a, b) => a + b, 0) % 2;
   if (cornerTwist !== 0) {
-    return { valid: false, error: 'A corner piece looks twisted in a way that is not possible on a real cube.' };
+    return { valid: false, error: "Every piece has real colors, but one corner looks twisted in its spot, which can't happen on a real cube. One corner's stickers are probably painted in the wrong order (for example its top and front colors swapped). Re-check each corner's three stickers against your cube." };
   }
   if (edgeFlip !== 0) {
-    return { valid: false, error: 'An edge piece looks flipped in a way that is not possible on a real cube — check for two swapped stickers.' };
+    return { valid: false, error: "Every piece has real colors, but one edge looks flipped in place, which can't happen on a real cube. Its two stickers are probably swapped. Re-check each edge's two stickers against your cube." };
   }
   if (permutationParity(cp) !== permutationParity(ep)) {
-    return { valid: false, error: 'This color arrangement can\'t be reached by turning a real cube — check for two swapped stickers.' };
+    return { valid: false, error: "Every piece has real colors, but two pieces look swapped, which can't happen on a real cube. Look for two stickers you may have painted in each other's spots." };
   }
 
   return { valid: true };
@@ -248,7 +313,7 @@ export const solveCubeState = async (state: CubeState): Promise<MoveName[]> => {
   const facelets = cubeStateToFacelets(state);
   const validation = validateFacelets(facelets);
   if (!validation.valid) {
-    throw new SolverError(validation.error ?? 'This cube state cannot be solved.');
+    throw new SolverError(validation.error ?? 'This cube state cannot be solved.', validation.highlight);
   }
 
   if (facelets === SOLVED_FACELETS) {

@@ -10,7 +10,7 @@ export const ThemeToggle = () => {
       variant="ghost"
       size="icon"
       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-      className="relative shrink-0 border border-border bg-card hover:bg-accent"
+      className="relative h-12 w-12 shrink-0 border border-border bg-card hover:bg-accent"
       aria-label="Toggle dark mode"
     >
       <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
