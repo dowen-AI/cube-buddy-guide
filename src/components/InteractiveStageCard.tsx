@@ -1,12 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Check, ChevronLeft, ChevronRight, ChevronUp, RotateCcw, Play, Eye, EyeOff } from 'lucide-react';
-import { InteractiveCube3D } from './InteractiveCube3D';
-import { MoveButtons } from './MoveButtons';
-import { StepGoalPreview } from './StepGoalPreview';
+import { Check, HelpCircle, Play, X } from 'lucide-react';
+import { FollowAlong } from './followalong/FollowAlong';
 import { NotationLegend } from './NotationLegend';
-import { useCubeState, getStageStartState, MoveName } from '@/hooks/useCubeState';
-import { InteractiveStage, FaceName } from '@/data/interactiveStagesData';
+import { FOLLOW_ALONG } from '@/data/followAlong';
+import type { InteractiveStage } from '@/data/interactiveStagesData';
 
 interface InteractiveStageCardProps {
   stage: InteractiveStage;
@@ -17,317 +15,68 @@ interface InteractiveStageCardProps {
   onClose: () => void;
 }
 
-export const InteractiveStageCard = ({
-  stage,
-  isComplete,
-  onToggleComplete,
-  isOpen,
-  onOpen,
-  onClose,
-}: InteractiveStageCardProps) => {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const { cubeState, performMove, undoMove, resetCube, moveHistory } = useCubeState(
-    getStageStartState(stage.id)
-  );
-  const [showGoalPreview, setShowGoalPreview] = useState(true);
+export const InteractiveStageCard = ({ stage, isComplete, onToggleComplete, isOpen, onOpen, onClose }: InteractiveStageCardProps) => {
+  const [showLegend, setShowLegend] = useState(false);
 
-  const currentStep = stage.steps[currentStepIndex];
-  const isLastStep = currentStepIndex === stage.steps.length - 1;
-  const isFirstStep = currentStepIndex === 0;
-
-  // Steps without a manual check ("Complete the move to continue") have no Next
-  // button, so making their required move is what advances them.
-  const applyMove = useCallback((move: MoveName) => {
-    performMove(move);
-    if (!currentStep.isManualCheck && !isLastStep) {
-      setCurrentStepIndex(prev => prev + 1);
-    }
-  }, [currentStep, isLastStep, performMove]);
-
-  const handleMove = useCallback((move: MoveName) => {
-    if (!currentStep.allowedMoves.includes(move)) return;
-    applyMove(move);
-  }, [currentStep, applyMove]);
-
-  const handleFaceClick = useCallback((face: FaceName) => {
-    if (!currentStep.allowedFaces.includes(face)) return;
-    
-    // Default to clockwise rotation when clicking a face
-    const moveMap: Record<FaceName, MoveName> = {
-      right: 'R',
-      left: 'L',
-      top: 'U',
-      bottom: 'D',
-      front: 'F',
-      back: 'B',
-    };
-    
-    if (currentStep.allowedMoves.includes(moveMap[face])) {
-      applyMove(moveMap[face]);
-    }
-  }, [currentStep, applyMove]);
-
-  const goToNextStep = () => {
-    if (!isLastStep) {
-      setCurrentStepIndex(prev => prev + 1);
-    }
-  };
-
-  const goToPrevStep = () => {
-    if (!isFirstStep) {
-      setCurrentStepIndex(prev => prev - 1);
-    }
-  };
-
-  const handleStartPractice = () => {
-    setCurrentStepIndex(0);
-    resetCube(getStageStartState(stage.id));
-    onOpen();
-  };
-
-  const handleReset = () => {
-    resetCube(getStageStartState(stage.id));
-  };
+  if (isOpen) {
+    return (
+      <section
+        id={`stage-${stage.id}`}
+        aria-label={`Stage ${stage.id}: ${stage.title}`}
+        // Exactly one screen tall under the 4rem sticky header, so a step never needs scrolling.
+        className="relative flex h-[calc(100dvh-4rem)] scroll-mt-16 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card md:h-[min(calc(100dvh-5rem),760px)]"
+      >
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border pl-3 pr-1">
+          <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white', isComplete ? 'bg-cube-green' : 'bg-gradient-to-br from-primary to-accent')}>
+            {isComplete ? <Check className="h-4 w-4" /> : stage.id}
+          </span>
+          <h2 className="min-w-0 flex-1 truncate font-display text-base font-bold text-foreground">{stage.title}</h2>
+          <button type="button" onClick={() => setShowLegend((v) => !v)} aria-expanded={showLegend} aria-label="What do the move letters mean?" className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
+            <HelpCircle className="h-5 w-5" />
+          </button>
+          <button type="button" onClick={onClose} aria-label={`Close the ${stage.title} guide`} className="flex h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+            <X className="h-4 w-4" /><span className="sm:hidden">Close</span><span className="hidden sm:inline">Close guide</span>
+          </button>
+        </div>
+        <div className="relative min-h-0 flex-1">
+          <FollowAlong flow={FOLLOW_ALONG[stage.id]} isComplete={isComplete} onComplete={onToggleComplete} onClose={onClose} />
+          {showLegend ? (
+            <div className="absolute inset-0 z-20 overflow-y-auto bg-background/95 p-3">
+              <NotationLegend defaultOpen />
+              <button type="button" onClick={() => setShowLegend(false)} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-xl border border-border font-medium">Back to the guide</button>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
       id={`stage-${stage.id}`}
-      className={cn(
-        "scroll-mt-32 bg-card rounded-2xl border border-border shadow-card overflow-hidden transition-all duration-300",
-        isComplete && "ring-2 ring-cube-green/30"
-      )}
+      className={cn('scroll-mt-32 overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300', isComplete && 'ring-2 ring-cube-green/30')}
     >
-      {/* Header */}
-      <div className="p-6 md:p-8 border-b border-border">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span
-              className={cn(
-                "flex items-center justify-center w-12 h-12 rounded-xl text-lg font-bold transition-all",
-                isComplete
-                  ? "bg-cube-green text-white"
-                  : "bg-gradient-to-br from-primary to-accent text-white"
-              )}
-            >
-              {isComplete ? <Check className="w-6 h-6" /> : stage.id}
-            </span>
-            <div>
-              <h2 className="text-2xl font-bold text-foreground font-display">
-                {stage.title}
-              </h2>
-              <p className="text-muted-foreground mt-1">{stage.description}</p>
-            </div>
+      <div className="border-b border-border p-6 md:p-8">
+        <div className="flex items-center gap-4">
+          <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white', isComplete ? 'bg-cube-green' : 'bg-gradient-to-br from-primary to-accent')}>
+            {isComplete ? <Check className="h-6 w-6" /> : stage.id}
+          </span>
+          <div>
+            <h2 className="font-display text-2xl font-bold text-foreground">{stage.title}</h2>
+            <p className="mt-1 text-muted-foreground">{stage.description}</p>
           </div>
-          {isOpen && (
-            <button
-              onClick={onClose}
-              aria-label={`Close the ${stage.title} guide`}
-              className="flex shrink-0 items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ChevronUp className="h-4 w-4" />
-              Close guide
-            </button>
-          )}
         </div>
       </div>
-
-      {/* Content */}
-      <div className="p-6 md:p-8">
-        {!isOpen ? (
-          // Start screen
-          <div className="text-center space-y-6">
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-6">
-              <h3 className="text-sm font-semibold text-primary uppercase tracking-wide mb-2">
-                🎯 Goal
-              </h3>
-              <p className="text-foreground text-lg">{stage.goal}</p>
-            </div>
-            
-            <button
-              onClick={handleStartPractice}
-              className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors"
-            >
-              <Play className="w-5 h-5" />
-              Start Interactive Guide
-            </button>
-            
-            <p className="text-sm text-muted-foreground">
-              Follow step-by-step instructions with move locking
-            </p>
-          </div>
-        ) : (
-          // Interactive practice mode
-          <div className="space-y-6">
-            <NotationLegend />
-
-            {/* Step Progress Bar */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                Step {currentStepIndex + 1}/{stage.steps.length}
-              </span>
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
-                  style={{ width: `${((currentStepIndex + 1) / stage.steps.length) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Main Content Grid */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* Left: 3D Cube */}
-              <div className="order-2 lg:order-1">
-                <div className="bg-muted/30 rounded-xl p-4 space-y-4">
-                  <InteractiveCube3D
-                    cubeState={cubeState}
-                    highlightFaces={currentStep.highlightFaces}
-                    allowedFaces={currentStep.allowedFaces}
-                    onFaceClick={handleFaceClick}
-                  />
-                  
-                  {/* Move history */}
-                  <div className="flex items-center gap-2 flex-wrap min-h-[32px]">
-                    <span className="text-xs text-muted-foreground font-medium">Moves:</span>
-                    {moveHistory.length === 0 ? (
-                      <span className="text-xs text-muted-foreground/60 italic">None yet</span>
-                    ) : (
-                      <>
-                        {moveHistory.slice(-8).map((move, i) => (
-                          <span key={i} className="text-xs bg-muted px-2 py-1 rounded font-mono">
-                            {move}
-                          </span>
-                        ))}
-                        {moveHistory.length > 8 && (
-                          <span className="text-xs text-muted-foreground">+{moveHistory.length - 8} more</span>
-                        )}
-                        <button
-                          onClick={undoMove}
-                          className="text-xs text-primary hover:underline ml-auto flex items-center gap-1"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          Undo
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Instructions */}
-              <div className="order-1 lg:order-2 space-y-4">
-                {/* Current Instruction Card */}
-                <div className="bg-gradient-to-br from-primary/10 to-accent/10 border-2 border-primary/30 rounded-xl p-5">
-                  <div className="flex items-start gap-4">
-                    <span className="flex-shrink-0 w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-lg font-bold">
-                      {currentStepIndex + 1}
-                    </span>
-                    <div className="flex-1 space-y-2">
-                      <p className="text-foreground font-semibold text-lg leading-snug">
-                        {currentStep.instruction}
-                      </p>
-                      {currentStep.tip && (
-                        <p className="text-sm text-muted-foreground bg-background/50 rounded-lg px-3 py-2">
-                          💡 {currentStep.tip}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {currentStep.stopCondition && (
-                    <div className="mt-4 pt-4 border-t border-primary/20">
-                      <div className="flex items-center gap-2">
-                        <span className="text-cube-green text-lg">✓</span>
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">
-                            Stop when
-                          </p>
-                          <p className="text-sm text-foreground font-medium">{currentStep.stopCondition}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Goal Preview Toggle */}
-                <button
-                  onClick={() => setShowGoalPreview(!showGoalPreview)}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showGoalPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  {showGoalPreview ? 'Hide goal preview' : 'Show goal preview'}
-                </button>
-                
-                {showGoalPreview && (
-                  <StepGoalPreview stepId={currentStep.id} />
-                )}
-              </div>
-            </div>
-
-            {/* Move Buttons */}
-            <MoveButtons
-              allowedMoves={currentStep.allowedMoves}
-              allowedFaces={currentStep.allowedFaces}
-              onMove={handleMove}
-              highlightFaces={currentStep.highlightFaces}
-            />
-
-            {/* Navigation */}
-            <div className="flex items-center gap-3 pt-4 border-t border-border">
-              <button
-                onClick={goToPrevStep}
-                disabled={isFirstStep}
-                className={cn(
-                  "flex items-center gap-1 px-4 py-2.5 rounded-lg font-medium transition-colors",
-                  isFirstStep
-                    ? "bg-muted text-muted-foreground cursor-not-allowed"
-                    : "bg-muted hover:bg-muted/80 text-foreground"
-                )}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Back
-              </button>
-              
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-1 px-4 py-2.5 rounded-lg font-medium bg-muted hover:bg-muted/80 text-foreground transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reset
-              </button>
-
-              <div className="flex-1" />
-
-              {currentStep.isManualCheck ? (
-                <button
-                  onClick={isLastStep ? onToggleComplete : goToNextStep}
-                  className={cn(
-                    "flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-semibold transition-all",
-                    isLastStep && isComplete
-                      ? "bg-cube-green text-white"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90"
-                  )}
-                >
-                  {isLastStep ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      {isComplete ? 'Stage Complete!' : 'Complete Stage'}
-                    </>
-                  ) : (
-                    <>
-                      Done, Next Step
-                      <ChevronRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-4 py-2.5 rounded-lg">
-                  <span className="animate-pulse">●</span>
-                  Complete the move to continue
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+      <div className="space-y-6 p-6 text-center md:p-8">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-6">
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-primary">🎯 Goal</h3>
+          <p className="text-lg text-foreground">{stage.goal}</p>
+        </div>
+        <button type="button" onClick={onOpen} className="inline-flex min-h-14 items-center gap-2 rounded-xl bg-primary px-8 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+          <Play className="h-5 w-5" />
+          {isComplete ? 'Follow along again' : 'Start follow-along'}
+        </button>
+        <p className="text-sm text-muted-foreground">Hold your real cube and do each turn with the guide, one move at a time.</p>
       </div>
     </section>
   );

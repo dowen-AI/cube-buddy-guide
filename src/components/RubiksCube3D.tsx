@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { useInView } from '@/hooks/useInView';
+import { cubeletFaces, stickerIndex } from '@/lib/cubeGeometry';
 
 interface CubeState {
   // Face colors: front, back, left, right, top, bottom (each is 3x3 array)
@@ -116,12 +117,10 @@ const RubiksCubeScene = ({ cubeState, autoRotate = true, highlightPieces = [] }:
           const colors: CubeletProps['colors'] = {};
           
           // Map face colors based on position
-          if (z === 1) colors.front = cubeState.front[1 - y]?.[x + 1] || CUBE_COLORS.black;
-          if (z === -1) colors.back = cubeState.back[1 - y]?.[1 - x] || CUBE_COLORS.black;
-          if (x === -1) colors.left = cubeState.left[1 - y]?.[1 - z] || CUBE_COLORS.black;
-          if (x === 1) colors.right = cubeState.right[1 - y]?.[z + 1] || CUBE_COLORS.black;
-          if (y === 1) colors.top = cubeState.top[1 - z]?.[x + 1] || CUBE_COLORS.black;
-          if (y === -1) colors.bottom = cubeState.bottom[z + 1]?.[x + 1] || CUBE_COLORS.black;
+          for (const face of cubeletFaces(x, y, z)) {
+            const [r, c] = stickerIndex(face, x, y, z);
+            colors[face] = cubeState[face][r]?.[c] || CUBE_COLORS.black;
+          }
 
           pieces.push(
             <Cubelet

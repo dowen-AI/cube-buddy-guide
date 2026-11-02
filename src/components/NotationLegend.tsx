@@ -10,8 +10,8 @@ const FACES = [
   ['B', 'Back'],
 ] as const;
 
-export const NotationLegend = ({ className }: { className?: string }) => (
-  <details className={cn('group rounded-lg border border-border bg-muted/40 text-sm', className)}>
+export const NotationLegend = ({ className, defaultOpen }: { className?: string; defaultOpen?: boolean }) => (
+  <details open={defaultOpen} className={cn('group rounded-lg border border-border bg-muted/40 text-sm', className)}>
     <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-medium text-foreground [&::-webkit-details-marker]:hidden">
       <HelpCircle className="h-4 w-4 text-primary" />
       What do these letters mean?

@@ -57,32 +57,39 @@ export const StageSidebar = ({ progress, activeStage, onStageClick }: StageNavig
   </nav>
 );
 
-// Below 1440px the stage list lives in the sticky header instead, so it is
-// always reachable and never overlaps content.
-export const StageStrip = ({ progress, activeStage, onStageClick }: StageNavigationProps) => (
-  <nav aria-label="Stages" className="min-[1440px]:hidden border-t border-border">
-    <ul className="max-w-4xl mx-auto px-4 py-2 flex gap-2 overflow-x-auto [scrollbar-width:thin]">
-      {interactiveStagesData.map((stage) => {
-        const isComplete = !!progress[stage.id];
-        const isActive = activeStage === stage.id;
-        return (
-          <li key={stage.id} className="shrink-0">
-            <button
-              onClick={() => onStageClick(stage.id)}
-              aria-current={isActive ? 'step' : undefined}
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs whitespace-nowrap border transition-colors',
-                isActive
-                  ? 'bg-primary/10 border-primary/40 text-primary font-medium'
-                  : 'border-border text-muted-foreground hover:bg-muted',
-              )}
-            >
-              <StageBadge id={stage.id} isComplete={isComplete} isActive={isActive} />
-              {stage.title}
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  </nav>
-);
+// Below 1440px the stage list lives in the sticky header instead: seven
+// numbered 48px buttons (which fit a 390px phone without sideways scrolling)
+// plus the full name of the current stage.
+export const StageStrip = ({ progress, activeStage, onStageClick }: StageNavigationProps) => {
+  const active = interactiveStagesData.find((s) => s.id === activeStage);
+  return (
+    <nav aria-label="Stages" className="min-[1440px]:hidden border-t border-border">
+      <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1">
+        <ol className="flex gap-1">
+          {interactiveStagesData.map((stage) => {
+            const isComplete = !!progress[stage.id];
+            const isActive = activeStage === stage.id;
+            return (
+              <li key={stage.id}>
+                <button
+                  onClick={() => onStageClick(stage.id)}
+                  aria-current={isActive ? 'step' : undefined}
+                  aria-label={`Stage ${stage.id}: ${stage.title}${isComplete ? ' (complete)' : ''}`}
+                  title={stage.title}
+                  className={cn('flex h-12 w-12 items-center justify-center rounded-lg transition-colors hover:bg-muted', isActive && 'bg-primary/10')}
+                >
+                  <StageBadge id={stage.id} isComplete={isComplete} isActive={isActive} />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        {active ? (
+          <p className="basis-full truncate pb-1 text-xs font-medium text-foreground md:basis-auto md:pb-0 md:text-sm" data-testid="active-stage-name">
+            Stage {active.id}: {active.title}
+          </p>
+        ) : null}
+      </div>
+    </nav>
+  );
+};

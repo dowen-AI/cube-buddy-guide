@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { toast } from 'sonner';
 import { useProgress } from '@/hooks/useProgress';
 import { ProgressBar } from '@/components/ProgressBar';
 import { StageSidebar, StageStrip } from '@/components/StageNavigation';
@@ -25,6 +26,8 @@ const Index = () => {
   const [showCelebration, setShowCelebration] = useState(false);
   // Accordion: at most one guide is open, so at most one guide 3D cube is mounted.
   const [openStageId, setOpenStageId] = useState<number | null>(null);
+  // While the solver's one-move-at-a-time player is on screen the header shrinks too.
+  const [solverPlaying, setSolverPlaying] = useState(false);
 
   // Opening a guide collapses any guide above it, which shifts the page;
   // re-anchor on the newly opened card once the layout has settled.
@@ -68,6 +71,12 @@ const Index = () => {
   }, [completedCount, totalStages]);
 
   const handleStageClick = (stageId: number) => {
+    // Mid-guide, jumping to another stage would pull the beginner away from the
+    // move they're doing; the open guide keeps its place until it's closed.
+    if (openStageId !== null && stageId !== openStageId) {
+      toast(`Close the Stage ${openStageId} guide first — your place in it is kept until you close it.`);
+      return;
+    }
     document.getElementById(`stage-${stageId}`)?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -94,6 +103,7 @@ const Index = () => {
           percentage={progressPercentage}
           completedCount={completedCount}
           totalStages={totalStages}
+          compact={openStageId !== null || solverPlaying}
         >
           <StageStrip progress={progress} activeStage={activeStage} onStageClick={handleStageClick} />
         </ProgressBar>
@@ -111,7 +121,7 @@ const Index = () => {
         <NotationReference />
 
         {/* Instant Solver */}
-        <CubeSolverSection />
+        <CubeSolverSection onPlayingChange={setSolverPlaying} />
 
         {/* Stages */}
         <section className="py-16 px-4">
