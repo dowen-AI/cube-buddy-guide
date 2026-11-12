@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { CUBE_COLORS as C, type CubeState } from '../src/hooks/useCubeState';
-import { FOLLOW_ALONG, ALGORITHMS, resolveTarget, sequenceMoves, type FlowNode, type Picture } from '../src/data/followAlong';
+import { FOLLOW_ALONG, ALGORITHMS, CHEAT_SHEET, resolveTarget, sequenceMoves, type FlowNode, type Picture } from '../src/data/followAlong';
 import {
   applyMoves, applyStep, scenario, showAll, twistCorner, cornersInSpot, edgeMatches, matchCount, maxMatchTurn,
   yellowTopEdges, sidesAligned, yellowDownAtFrontRight, FRONT_RIGHT_BOTTOM, FRONT_LEFT_BOTTOM, type Demo,
@@ -227,5 +227,22 @@ describe('stage 7: corner twists (yellow on the bottom)', () => {
     for (let k = 0; k < 4; k++) { let r = 0; while (!yellowDownAtFrontRight(d.colors) && r < 6) { d = applyMoves(d, "R' D' R D"); r++; } d = applyStep(d, 'D'); }
     const solved = ['', 'D', 'D2', "D'"].some((x) => { const t = applyMoves(d, x); return sidesAligned(t.colors) && t.colors.top.flat().every((c) => c === C.white); });
     assert.equal(solved, false);
+  });
+});
+
+describe('memory aids', () => {
+  test('every chant has exactly one phrase per move (so the current word can be highlighted)', () => {
+    for (const flow of Object.values(FOLLOW_ALONG)) for (const n of Object.values(flow.nodes)) {
+      if (n.kind !== 'sequence') continue;
+      for (const ch of n.chunks) assert.equal(ch.phrase.split(', ').length, ch.moves.length, `${n.id} / ${ch.name}: "${ch.phrase}" vs ${ch.moves.join(' ')}`);
+    }
+  });
+  test('the cheat sheet has one rule per stage and its notation matches what the guide teaches', () => {
+    assert.deepEqual(CHEAT_SHEET.map((x) => x.stage), [1, 2, 3, 4, 5, 6, 7]);
+    const taught = new Set(Object.values(ALGORITHMS));
+    for (const x of CHEAT_SHEET) if (x.move) assert.ok(taught.has(x.move.notation), `stage ${x.stage}: ${x.move.notation}`);
+    // the Sledgehammer is the same four moves in Stages 2 and 7
+    assert.equal(CHEAT_SHEET[1].move!.notation, CHEAT_SHEET[6].move!.notation);
+    assert.equal(sequenceMoves(node(7, 's7-twist') as never).join(' '), sequenceMoves(node(2, 's2-sledge') as never).join(' '));
   });
 });

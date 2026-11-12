@@ -3,23 +3,23 @@ import { BookOpen, RotateCcw, CheckCircle2, Lightbulb } from 'lucide-react';
 const tips = [
   {
     icon: BookOpen,
-    title: "Read Each Stage Carefully",
-    description: "Take your time with each step. There's no rush—understanding is more important than speed."
+    title: "1. Hold your cube like the picture",
+    description: "Every screen shows which color goes on top. Keep your cube the same way and you can't get lost."
   },
   {
     icon: RotateCcw,
-    title: "Interact with the 3D Cube",
-    description: "Drag the cubes to see them from different angles. This helps you understand exactly which pieces to move."
-  },
-  {
-    icon: CheckCircle2,
-    title: "Mark Your Progress",
-    description: "Finish a stage with the \"Complete Stage\" button at the end of its guide. Your progress shows in the bar at the top and is saved automatically."
+    title: "2. Do one turn, then tap",
+    description: "The screen shows a single turn with an arrow. Do it on your cube, tap \"I did it\", and the next turn appears."
   },
   {
     icon: Lightbulb,
-    title: "Practice Makes Perfect",
-    description: "Don't worry if you need to repeat stages. Most people need several attempts to memorize the moves."
+    title: "3. Wrong turn? Tap \"I messed up\"",
+    description: "The guide walks your real cube back, one turn at a time. You never have to start a stage over for one mistake."
+  },
+  {
+    icon: CheckCircle2,
+    title: "4. Stop any time",
+    description: "Your place is saved, even in the middle of a stage. Each stage ends with one sentence to remember, and the cheat sheet at the bottom has all seven."
   }
 ];
 
@@ -31,9 +31,8 @@ export const HowToUseSection = () => {
           How to Use This Guide
         </h2>
         <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-          This guide uses the <strong>Layer-by-Layer</strong> method—the most 
-          beginner-friendly approach to solving a Rubik's Cube. Follow these tips 
-          for the best experience.
+          This guide uses the <strong>Layer-by-Layer</strong> method, the easiest way to solve a
+          Rubik's Cube: bottom layer, middle layer, then the top.
         </p>
 
         <div className="grid sm:grid-cols-2 gap-6">

@@ -10,6 +10,7 @@ import { CubeSolverSection } from '@/components/CubeSolverSection';
 import { InteractiveStageCard } from '@/components/InteractiveStageCard';
 import { NotationReference } from '@/components/NotationReference';
 import { CelebrationModal } from '@/components/CelebrationModal';
+import { CheatSheet } from '@/components/CheatSheet';
 import { interactiveStagesData } from '@/data/interactiveStagesData';
 
 const Index = () => {
@@ -22,7 +23,8 @@ const Index = () => {
     progressPercentage,
   } = useProgress();
 
-  const [activeStage, setActiveStage] = useState(1);
+  // null while the reader is above Stage 1 (hero, notation, solver)
+  const [activeStage, setActiveStage] = useState<number | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   // Accordion: at most one guide is open, so at most one guide 3D cube is mounted.
   const [openStageId, setOpenStageId] = useState<number | null>(null);
@@ -46,16 +48,15 @@ const Index = () => {
         document.getElementById(`stage-${stage.id}`)
       );
 
+      let current: number | null = null;
       for (let i = stageElements.length - 1; i >= 0; i--) {
         const element = stageElements[i];
-        if (element) {
-          const rect = element.getBoundingClientRect();
-          if (rect.top <= 200) {
-            setActiveStage(i + 1);
-            break;
-          }
+        if (element && element.getBoundingClientRect().top <= 200) {
+          current = i + 1;
+          break;
         }
       }
+      setActiveStage(current);
     };
 
     handleScroll();
@@ -139,6 +140,9 @@ const Index = () => {
             ))}
           </div>
         </section>
+
+        {/* The whole method on one page, for remembering it afterwards */}
+        <CheatSheet />
 
         {/* Footer */}
         <footer className="py-12 px-4 text-center border-t border-border">

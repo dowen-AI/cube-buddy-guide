@@ -1,14 +1,16 @@
-import { useCallback, useMemo, useReducer } from 'react';
-import { AlertTriangle, ArrowLeft, Check, LifeBuoy, RotateCcw, Undo2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { AlertTriangle, ArrowLeft, Brain, Check, LifeBuoy, RotateCcw, Undo2, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { MoveName } from '@/hooks/useCubeState';
 import { InteractiveCube3D } from '@/components/InteractiveCube3D';
-import { CubePicture, TopPatternPicture } from './Pictures';
+import { CubePicture, PieceTypes, TopPatternPicture } from './Pictures';
 import { MOVE_HINT, MOVE_TEXT, inverseMove, isDoubleMove } from '@/lib/moves';
 import { MOVE_FACE, type Face } from '@/lib/cubeGeometry';
 import { applyStep, solvedFor, type Demo, type Hold } from '@/lib/cubeDemo';
+import { getKnownMoves, loadPosition, markMoveKnown, savePosition } from '@/lib/guideMemory';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import {
-  applyEffect, resolveTarget, sequenceMoves, startDemo,
+  applyEffect, resolveTarget, sequenceMoves, startDemo, CHEAT_SHEET,
   type ChoiceOption, type Counters, type CounterDisplay, type Effect, type FlowNode, type Picture, type StageFlow, type Target,
 } from '@/data/followAlong';
 
@@ -28,12 +30,16 @@ interface State {
   sheet: boolean;
   undo: { log: SeqLog; index: number } | null;
   undone: SeqLog | null;
+  memory: boolean; // "I know this one": the whole sequence on one screen
+  restored: boolean; // reopened part-way through the stage
 }
 
 type Action =
   | { type: 'go'; target: Target; effect?: Effect; demo?: Demo }
   | { type: 'moveDone' }
   | { type: 'moveBack' }
+  | { type: 'memory'; open: boolean }
+  | { type: 'allDone' }
   | { type: 'sheet'; open: boolean }
   | { type: 'restartStep' }
   | { type: 'restartStage' }
@@ -43,29 +49,41 @@ type Action =
   | { type: 'retryAfterUndo' }
   | { type: 'stopUndo' };
 
-const initial = (flow: StageFlow): State => {
+const fresh = (flow: StageFlow): State => {
   const demo = startDemo(flow);
   return {
     nodeId: flow.start, counters: {}, demo, moveIndex: 0, phase: 'moves', current: null, last: null,
-    stepStart: { demo, counters: {} }, sheet: false, undo: null, undone: null,
+    stepStart: { demo, counters: {} }, sheet: false, undo: null, undone: null, memory: false, restored: false,
   };
+};
+
+const enter = (flow: StageFlow, base: State, id: string): State => {
+  const next = flow.nodes[id];
+  const entered: State = { ...base, nodeId: id, moveIndex: 0, phase: 'moves', current: null, sheet: false, undone: null, memory: false };
+  if (next.id === next.step) entered.stepStart = { demo: entered.demo, counters: entered.counters };
+  if (next.kind === 'sequence') {
+    entered.current = { nodeId: id, name: next.name, moves: [], countersBefore: entered.counters, demoBefore: entered.demo };
+  }
+  return entered;
+};
+
+// Open where the person left off (the start of the step they were on), if they
+// were part-way through this stage last time.
+const initial = (flow: StageFlow): State => {
+  const base = fresh(flow);
+  const saved = loadPosition(flow.stageId);
+  const step = saved ? flow.nodes[saved.step] : undefined;
+  if (!saved || !step || step.id === flow.start || step.kind === 'finish') return base;
+  const demo = 'demo' in step && step.demo ? step.demo() : base.demo;
+  return { ...enter(flow, { ...base, demo, counters: saved.counters }, step.id), restored: true };
 };
 
 const makeReducer = (flow: StageFlow) => (s: State, a: Action): State => {
   const node = flow.nodes[s.nodeId];
-  const enter = (base: State, id: string): State => {
-    const next = flow.nodes[id];
-    const entered: State = { ...base, nodeId: id, moveIndex: 0, phase: 'moves', current: null, sheet: false, undone: null };
-    if (next.id === next.step) entered.stepStart = { demo: entered.demo, counters: entered.counters };
-    if (next.kind === 'sequence') {
-      entered.current = { nodeId: id, name: next.name, moves: [], countersBefore: entered.counters, demoBefore: entered.demo };
-    }
-    return entered;
-  };
   switch (a.type) {
     case 'go': {
       const counters = applyEffect(s.counters, a.effect);
-      return enter({ ...s, counters, demo: a.demo ?? s.demo }, resolveTarget(a.target, counters));
+      return enter(flow, { ...s, counters, demo: a.demo ?? s.demo, restored: false }, resolveTarget(a.target, counters));
     }
     case 'moveDone': {
       if (node.kind !== 'sequence' || !s.current || s.phase !== 'moves') return s;
@@ -75,6 +93,16 @@ const makeReducer = (flow: StageFlow) => (s: State, a: Action): State => {
       const demo = applyStep(s.demo, move);
       if (s.moveIndex + 1 < moves.length) return { ...s, demo, current, moveIndex: s.moveIndex + 1 };
       return { ...s, demo, current, last: current, phase: 'checkpoint', counters: applyEffect(s.counters, node.onDone) };
+    }
+    case 'memory':
+      return node.kind === 'sequence' && s.phase === 'moves' ? { ...s, memory: a.open } : s;
+    case 'allDone': {
+      // Did the rest of the sequence from memory: same result as tapping through every move.
+      if (node.kind !== 'sequence' || !s.current || s.phase !== 'moves') return s;
+      const rest = sequenceMoves(node).slice(s.moveIndex);
+      const demo = rest.reduce((d, m) => applyStep(d, m), s.demo);
+      const current = { ...s.current, moves: [...s.current.moves, ...rest] };
+      return { ...s, demo, current, last: current, phase: 'checkpoint', memory: false, counters: applyEffect(s.counters, node.onDone) };
     }
     case 'moveBack': {
       if (node.kind !== 'sequence' || !s.current) return s;
@@ -90,9 +118,9 @@ const makeReducer = (flow: StageFlow) => (s: State, a: Action): State => {
     case 'sheet':
       return { ...s, sheet: a.open };
     case 'restartStep':
-      return enter({ ...s, demo: s.stepStart.demo, counters: s.stepStart.counters }, node.step);
+      return enter(flow, { ...s, demo: s.stepStart.demo, counters: s.stepStart.counters }, node.step);
     case 'restartStage':
-      return initial(flow);
+      return fresh(flow);
     case 'startUndo': {
       const log = s.current && s.current.moves.length ? s.current : s.last;
       if (!log || !log.moves.length) return s;
@@ -114,7 +142,7 @@ const makeReducer = (flow: StageFlow) => (s: State, a: Action): State => {
     case 'retryAfterUndo': {
       if (!s.undone) return s;
       const log = s.undone;
-      return { ...enter({ ...s, demo: log.demoBefore, counters: log.countersBefore, last: null }, log.nodeId) };
+      return enter(flow, { ...s, demo: log.demoBefore, counters: log.countersBefore, last: null }, log.nodeId);
     }
     case 'stopUndo':
       return { ...s, undo: null };
@@ -148,13 +176,13 @@ const OrientationBanner = ({ hold, loudFlip, onMessedUp }: { hold: Hold; loudFli
   );
 };
 
-const CounterRow = ({ items, counters }: { items: CounterDisplay[]; counters: Counters }) => (
+const CounterRow = ({ items, counters, note }: { items: CounterDisplay[]; counters: Counters; note?: string }) => (
   <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-0.5 border-b border-border px-3 py-1" aria-live="polite">
     {items.map((c) => {
       const value = counters[c.key] ?? 0;
       return (
-        <div key={c.key} className="flex items-center gap-2 text-sm" data-counter={c.key}>
-          <span className="text-muted-foreground">{c.label}:</span>
+        <div key={c.key} className="flex min-w-0 items-baseline gap-2 text-sm" data-counter={c.key}>
+          <span className="shrink-0 whitespace-nowrap text-muted-foreground">{c.label}:</span>
           {c.of ? (
             <>
               <span className="font-bold tabular-nums text-foreground">{value} of {c.of}</span>
@@ -168,6 +196,7 @@ const CounterRow = ({ items, counters }: { items: CounterDisplay[]; counters: Co
         </div>
       );
     })}
+    {note ? <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-950 dark:bg-sky-900/50 dark:text-sky-100" role="status" data-testid="restored">{note}</span> : null}
   </div>
 );
 
@@ -217,8 +246,29 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
 
   const seqNode = node.kind === 'sequence' ? (node as SequenceNode) : null;
   const seqMoves = seqNode ? sequenceMoves(seqNode) : [];
+  const seqKey = seqMoves.join(' ');
+
+  // Someone following along has a cube in both hands: don't let the screen sleep.
+  useWakeLock();
+
+  // Sequences done at least once (on any earlier visit too) can be done "from memory" in one tap.
+  const [known, setKnown] = useState<string[]>(getKnownMoves);
+  useEffect(() => {
+    if (!seqNode || s.phase !== 'checkpoint' || known.includes(seqKey)) return;
+    markMoveKnown(seqKey);
+    setKnown((k) => [...k, seqKey]);
+  }, [seqNode, s.phase, seqKey, known]);
+  const canDoFromMemory = seqMoves.length >= 3 && known.includes(seqKey);
+
+  // Remember the step they are on, so a locked phone or a reload resumes here.
+  const stepCounters = s.stepStart.counters;
+  useEffect(() => {
+    const atStart = node.step === flow.start;
+    savePosition(flow.stageId, node.kind === 'finish' || atStart ? null : { step: node.step, counters: stepCounters });
+  }, [flow, node.kind, node.step, stepCounters]);
+
   const undoMove = s.undo ? inverseMove(s.undo.log.moves[s.undo.log.moves.length - 1 - s.undo.index]) : null;
-  const activeMove: MoveName | null = undoMove ?? (seqNode && s.phase === 'moves' && !s.undone ? seqMoves[s.moveIndex] : node.kind === 'adjust' && !s.undone ? node.move : null);
+  const activeMove: MoveName | null = undoMove ?? (seqNode && s.phase === 'moves' && !s.undone && !s.memory ? seqMoves[s.moveIndex] : node.kind === 'adjust' && !s.undone ? node.move : null);
   const canUndoSequence = Boolean((s.current && s.current.moves.length) || s.last?.moves.length);
 
   // Tapping the face that should turn counts as "I did it".
@@ -232,6 +282,8 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
   const view = checkpointPicture?.kind === 'cube' && checkpointPicture.view ? checkpointPicture.view : node.view ?? 'top';
   const cubeDemo = checkpointPicture?.kind === 'cube' ? checkpointPicture.demo() : node.kind === 'finish' && node.picture.kind === 'cube' ? node.picture.demo() : s.demo;
   const showCube = node.kind !== 'choice' && !(node.kind === 'finish' && node.picture.kind === 'pattern');
+  // Grey stickers stand for "any color"; say so on every cube that has them, not just checkpoints.
+  const hasGrey = Object.values(cubeDemo.vis).some((face) => face.some((row) => row.some((v) => v === '0')));
   // On move screens; the checkpoint carries the same reassurance in its own text.
   const reassure = s.phase === 'moves' ? seqNode?.reassure?.(s.counters) : undefined;
 
@@ -261,15 +313,42 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
         </div>
       </div>
     );
+  } else if (seqNode && s.phase === 'moves' && s.memory) {
+    const left = seqMoves.length - s.moveIndex;
+    controls = (
+      <div className="flex flex-col gap-2" data-testid="memory-screen">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary"><Brain className="h-4 w-4" />From memory — {seqNode.name}</p>
+        <div className="space-y-1">
+          {seqNode.chunks.map((ch, i) => (
+            <p key={i} className="text-lg font-bold leading-snug text-foreground">{ch.phrase.split(', ').join(' · ')}</p>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground">Say it out loud as you turn. Stuck? Go back to one move at a time.</p>
+        <BigButton onClick={() => dispatch({ type: 'allDone' })} data-testid="memory-done"><Check className="h-5 w-5" />Done — I did all {left} moves</BigButton>
+        <div className="flex gap-2">
+          <SmallButton onClick={() => dispatch({ type: 'memory', open: false })}><ArrowLeft className="h-4 w-4" />Show me one move at a time</SmallButton>
+        </div>
+      </div>
+    );
   } else if (seqNode && s.phase === 'moves') {
     const move = seqMoves[s.moveIndex];
     let offset = 0;
     const chunkIndex = seqNode.chunks.findIndex((ch) => { if (s.moveIndex < offset + ch.moves.length) return true; offset += ch.moves.length; return false; });
     const chunkInfo = seqNode.chunks[chunkIndex];
+    // The chant has one phrase per move: light up the one being done, so the words sink in.
+    const words = chunkInfo.phrase.split(', ');
+    const wordIndex = s.moveIndex - offset;
     controls = (
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          {seqNode.chunks.length > 1 ? `Part ${chunkIndex + 1} of ${seqNode.chunks.length}: ` : ''}{chunkInfo.name} — <span className="normal-case">{chunkInfo.phrase}</span>
+        <p className="text-xs font-semibold tracking-wide text-primary" data-testid="chant">
+          <span className="uppercase">{seqNode.chunks.length > 1 ? `Part ${chunkIndex + 1} of ${seqNode.chunks.length}: ` : ''}{chunkInfo.name}</span>
+          {' — '}
+          {words.map((w, i) => (
+            <span key={i}>
+              <span className={cn(i === wordIndex ? 'rounded bg-primary px-1 py-0.5 text-primary-foreground' : 'text-muted-foreground')} data-current={i === wordIndex || undefined}>{w}</span>
+              {i < words.length - 1 ? <span className="text-muted-foreground">{', '}</span> : null}
+            </span>
+          ))}
         </p>
         {s.moveIndex === 0 && seqNode.intro ? <p className="text-sm text-muted-foreground">{seqNode.intro}</p> : null}
         <p className="text-2xl font-bold leading-tight text-foreground" data-testid="move-instruction">{MOVE_TEXT[move]}</p>
@@ -277,7 +356,11 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
         <p className="text-sm text-muted-foreground"><code className="font-mono">{move}</code> · <span data-testid="move-progress">Move {s.moveIndex + 1} of {seqMoves.length}</span></p>
         <BigButton onClick={() => dispatch({ type: 'moveDone' })} data-testid="next-move">I did it — next move</BigButton>
         <div className="flex gap-2">
-          <SmallButton onClick={() => dispatch({ type: 'moveBack' })} disabled={s.moveIndex === 0}><ArrowLeft className="h-4 w-4" />Back one move (tapped too soon)</SmallButton>
+          {s.moveIndex === 0 && canDoFromMemory ? (
+            <SmallButton onClick={() => dispatch({ type: 'memory', open: true })} data-testid="know-it"><Zap className="h-4 w-4" />I know this one — do all {seqMoves.length} at once</SmallButton>
+          ) : (
+            <SmallButton onClick={() => dispatch({ type: 'moveBack' })} disabled={s.moveIndex === 0}><ArrowLeft className="h-4 w-4" />Back one move (tapped too soon)</SmallButton>
+          )}
         </div>
       </div>
     );
@@ -324,6 +407,7 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
       <div className="flex flex-col gap-2">
         {node.kind === 'adjust' ? <p className="text-xs font-semibold uppercase tracking-wide text-primary">Turn until it lines up</p> : null}
         <p className="text-xl font-bold leading-snug text-foreground" data-testid="move-instruction">{node.title}</p>
+        {node.kind === 'info' && node.pieces ? <PieceTypes /> : null}
         {node.body ? <p className="text-sm text-muted-foreground">{node.body}</p> : null}
         {node.kind === 'adjust' ? <p className="text-sm text-muted-foreground">The arrow shows one click: <code className="font-mono">{node.move}</code> ({MOVE_TEXT[node.move].replace('Turn the ', '').toLowerCase()}).</p> : null}
         <BigButton onClick={() => {
@@ -333,11 +417,18 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
       </div>
     );
   } else if (node.kind === 'finish') {
+    const summary = CHEAT_SHEET.find((x) => x.stage === flow.stageId);
     controls = (
       <div className="flex flex-col gap-2">
         <p className="text-2xl font-bold text-foreground">{node.title}</p>
         <p className="text-sm text-muted-foreground">{node.body}</p>
-        {node.picture.kind === 'pattern' ? <div className="flex justify-center"><TopPatternPicture pattern={node.picture.pattern} size={120} /></div> : null}
+        {summary ? (
+          <p className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm leading-snug text-foreground" data-testid="remember">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary"><Brain className="h-4 w-4" />Remember</span>
+            {summary.rule}
+          </p>
+        ) : null}
+        {node.picture.kind === 'pattern' ? <div className="flex justify-center"><TopPatternPicture pattern={node.picture.pattern} size={80} /></div> : null}
         <BigButton onClick={() => { if (!isComplete) onComplete(); }} aria-pressed={isComplete}>
           <Check className="h-5 w-5" />{isComplete ? 'Stage Complete!' : 'Complete Stage'}
         </BigButton>
@@ -349,7 +440,7 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
   return (
     <div className="relative flex h-full flex-col overflow-hidden" data-testid="follow-along" data-node={s.nodeId}>
       <OrientationBanner hold={node.hold} loudFlip={node.loudFlip} onMessedUp={s.undo || s.undone ? undefined : () => dispatch({ type: 'sheet', open: true })} />
-      {node.counters?.length ? <CounterRow items={node.counters} counters={s.counters} /> : null}
+      {node.counters?.length || s.restored ? <CounterRow items={node.counters ?? []} counters={s.counters} note={s.restored ? 'Resumed' : undefined} /> : null}
       {reassure && !s.undo && !s.undone ? (
         <p className="shrink-0 bg-sky-100 px-3 py-1.5 text-sm font-medium text-sky-950 dark:bg-sky-900/50 dark:text-sky-100" role="status" data-testid="reassure">{reassure}</p>
       ) : null}
@@ -369,7 +460,9 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
               <span className="absolute right-3 top-3 rounded-full bg-fuchsia-600 px-3 py-1 text-sm font-bold text-white">×2 — turn twice</span>
             ) : null}
             {(seqNode && s.phase === 'checkpoint') || node.kind === 'finish' ? (
-              <span className="absolute left-3 top-3 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-foreground">Your cube should look like THIS · grey = any color</span>
+              <span className="absolute left-3 top-3 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-foreground">Your cube should look like THIS{hasGrey ? ' · grey = any color' : ''}</span>
+            ) : hasGrey ? (
+              <span className="absolute left-3 top-3 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-foreground" data-testid="grey-note">Grey stickers = any color</span>
             ) : null}
           </div>
         ) : null}
