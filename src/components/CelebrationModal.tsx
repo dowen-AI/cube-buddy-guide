@@ -81,7 +81,8 @@ export const CelebrationModal = ({ isOpen, onClose, onReset }: CelebrationModalP
 
         {/* Message */}
         <p className="text-foreground mb-6">
-          You now know the Layer-by-Layer method! Keep practicing to get faster. 
+          You now know the Layer-by-Layer method! Scramble it and go again while it's fresh:
+          the second solve is where it sticks. The one-page cheat sheet is at the bottom of this page.
           Most beginners can solve it in under 5 minutes with practice.
         </p>
 

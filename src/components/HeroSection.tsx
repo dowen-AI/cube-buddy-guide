@@ -7,10 +7,10 @@ export const HeroSection = () => {
   };
 
   return (
-    <section className="min-h-screen flex flex-col items-center justify-center px-4 py-20 gradient-hero">
+    <section className="min-h-screen flex flex-col items-center justify-center px-4 pt-40 pb-20 md:pt-36 min-[1440px]:pt-24 gradient-hero">
       <div className="max-w-4xl mx-auto text-center">
         {/* 3D Cube */}
-        <div className="mb-8">
+        <div className="mb-4">
           <RubiksCube3D cubeState={cubeStates.scrambled} autoRotate={true} />
         </div>
 
@@ -22,15 +22,31 @@ export const HeroSection = () => {
           </span>
         </h1>
 
+        {/* Two ways in */}
+        <div className="mx-auto mb-8 flex max-w-md flex-col gap-3">
+          <button
+            onClick={scrollToContent}
+            className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Start Learning — Stage 1 <ChevronDown className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => document.getElementById('solver')?.scrollIntoView({ behavior: 'smooth' })}
+            className="flex min-h-12 items-center justify-center rounded-xl border-2 border-border bg-card px-6 font-semibold text-foreground transition-colors hover:bg-muted"
+          >
+            Just solve my cube for me
+          </button>
+          <p className="text-sm text-muted-foreground">Grab your cube. You only need 5 moves, one turn at a time.</p>
+        </div>
+
         {/* Subtitle */}
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          A simple, visual, step-by-step guide for absolute beginners.
-          Notation explained in plain English. No frustration. Just clear instructions and
-          interactive 3D cubes to guide you every step of the way.
+          Hold your cube, follow one turn at a time, and tap when you've done it.
+          Plain English, no memorizing up front. If you make a wrong turn, the guide walks you back.
         </p>
 
         {/* Features */}
-        <div className="flex flex-wrap justify-center gap-4 mb-12">
+        <div className="flex flex-wrap justify-center gap-4">
           <span className="px-4 py-2 bg-cube-red/10 text-cube-red rounded-full text-sm font-medium">
             7 Simple Stages
           </span>
@@ -45,14 +61,6 @@ export const HeroSection = () => {
           </span>
         </div>
 
-        {/* CTA */}
-        <button
-          onClick={scrollToContent}
-          className="group inline-flex flex-col items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-        >
-          <span className="text-sm font-medium">Start Learning</span>
-          <ChevronDown className="w-6 h-6 animate-bounce" />
-        </button>
       </div>
     </section>
   );

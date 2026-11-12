@@ -78,3 +78,30 @@ export const TopPatternPicture = ({ pattern, size = 72 }: { pattern: TopPattern;
     </svg>
   );
 };
+
+// The three kinds of pieces, drawn as the stickers you can see on each one.
+const Sticker = ({ points, fill }: { points: string; fill: string }) => <polygon points={points} fill={fill} stroke={CUBE_COLORS.black} strokeWidth={2.5} strokeLinejoin="round" />;
+export const PieceTypes = () => {
+  const items: { name: string; note: string; art: JSX.Element }[] = [
+    { name: 'CENTER', note: '1 color · never moves', art: <Sticker points="12,12 44,12 44,44 12,44" fill={CUBE_COLORS.yellow} /> },
+    {
+      name: 'EDGE', note: '2 colors',
+      art: <><Sticker points="14,8 42,8 42,28 14,28" fill={CUBE_COLORS.yellow} /><Sticker points="14,28 42,28 42,48 14,48" fill={CUBE_COLORS.red} /></>,
+    },
+    {
+      name: 'CORNER', note: '3 colors',
+      art: <><Sticker points="28,6 48,17 28,28 8,17" fill={CUBE_COLORS.yellow} /><Sticker points="8,17 28,28 28,50 8,39" fill={CUBE_COLORS.red} /><Sticker points="28,28 48,17 48,39 28,50" fill={CUBE_COLORS.green} /></>,
+    },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2" data-testid="piece-types">
+      {items.map((it) => (
+        <div key={it.name} className="flex flex-col items-center rounded-xl border border-border bg-background px-1 py-1.5 text-center">
+          <svg viewBox="0 0 56 56" width={48} height={48} role="img" aria-label={`${it.name.toLowerCase()} piece`}>{it.art}</svg>
+          <span className="text-sm font-bold text-foreground">{it.name}</span>
+          <span className="text-xs leading-tight text-muted-foreground">{it.note}</span>
+        </div>
+      ))}
+    </div>
+  );
+};

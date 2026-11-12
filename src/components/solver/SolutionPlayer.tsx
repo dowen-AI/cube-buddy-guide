@@ -5,6 +5,7 @@ import { executeMove, getSolvedCube, type CubeState, type MoveName } from '@/hoo
 import { InteractiveCube3D } from '@/components/InteractiveCube3D';
 import { CubePicture } from '@/components/followalong/Pictures';
 import { MOVE_HINT, MOVE_TEXT, inverseMove, isDoubleMove } from '@/lib/moves';
+import { useWakeLock } from '@/hooks/useWakeLock';
 
 interface SolutionPlayerProps {
   start: CubeState;
@@ -19,6 +20,7 @@ export const SolutionPlayer = ({ start, moves, onEdit, onNewCube }: SolutionPlay
   const [index, setIndex] = useState(0);
   const [wentBack, setWentBack] = useState(false);
   const ref = useRef<HTMLElement>(null);
+  useWakeLock();
 
   // states[i] = the cube before move i (states[moves.length] = solved)
   const states = useMemo(() => {

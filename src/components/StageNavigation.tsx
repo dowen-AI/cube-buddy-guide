@@ -5,7 +5,7 @@ import { interactiveStagesData } from '@/data/interactiveStagesData';
 
 interface StageNavigationProps {
   progress: StageProgress;
-  activeStage: number;
+  activeStage: number | null;
   onStageClick: (stageId: number) => void;
 }
 
@@ -84,11 +84,9 @@ export const StageStrip = ({ progress, activeStage, onStageClick }: StageNavigat
             );
           })}
         </ol>
-        {active ? (
-          <p className="basis-full truncate pb-1 text-xs font-medium text-foreground md:basis-auto md:pb-0 md:text-sm" data-testid="active-stage-name">
-            Stage {active.id}: {active.title}
+        <p className="basis-full truncate pb-1 text-xs font-medium text-foreground md:basis-auto md:pb-0 md:text-sm" data-testid="active-stage-name">
+            {active ? `Stage ${active.id}: ${active.title}` : <span className="text-muted-foreground">7 stages — tap a number to jump to one</span>}
           </p>
-        ) : null}
       </div>
     </nav>
   );
