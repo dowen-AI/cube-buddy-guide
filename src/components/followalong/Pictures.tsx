@@ -1,9 +1,9 @@
 import { CUBE_COLORS, type CubeState } from '@/hooks/useCubeState';
-import { stickerIndex, type Face } from '@/lib/cubeGeometry';
-import type { Demo } from '@/lib/cubeDemo';
+import { ANY_COLOR, stickerIndex, type Face } from '@/lib/cubeGeometry';
+import { TOP_CORNERS, cornerInSpot, edgeMatches, type Demo } from '@/lib/cubeDemo';
 import type { TopPattern } from '@/data/followAlong';
 
-const GREY = '#a3a8b3';
+const GREY = ANY_COLOR;
 const COS30 = Math.cos(Math.PI / 6);
 
 type P3 = [number, number, number];
@@ -68,13 +68,61 @@ export const TopPatternPicture = ({ pattern, size = 72 }: { pattern: TopPattern;
     if (r === 2 && c === 1) return front ? CUBE_COLORS.yellow : GREY;
     return GREY;
   };
+  // The caption must stay readable (14px or more) at any picture size.
+  const font = Math.max(3.6, (14 / size) * 34);
+  const caption = size >= 130 ? 'FRONT (toward you)' : '▼ YOU';
+  const h = 34 + font + 1.5;
   return (
-    <svg viewBox="0 0 34 38" width={size} height={size * (38 / 34)} role="img" aria-label={`Top view: ${pattern === 'l' ? 'L-shape' : pattern}`}>
+    <svg viewBox={`0 0 34 ${h}`} width={size} height={size * (h / 34)} role="img" aria-label={`Top view: ${pattern === 'l' ? 'L shape' : pattern}`}>
       <rect x="0" y="0" width="34" height="34" rx="3" fill={CUBE_COLORS.black} />
       {[0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => (
         <rect key={`${r}${c}`} x={1.5 + c * 10.5} y={1.5 + r * 10.5} width="10" height="10" rx="1.5" fill={cell(r, c)} />
       )))}
-      <text x="17" y="37.5" textAnchor="middle" fontSize="3.6" fill="currentColor">FRONT (toward you)</text>
+      <text x="17" y={34 + font} textAnchor="middle" fontSize={font} fontWeight="600" fill="currentColor">{caption}</text>
+    </svg>
+  );
+};
+
+// Looking straight down at the top face, with the top row of each side folded
+// out around it and that side's center beyond. Ticks mark what already matches,
+// so the person compares pictures instead of counting.
+export const TopDownPicture = ({ demo, marks, size = 72 }: { demo: Demo; marks: 'edges' | 'corners'; size?: number }) => {
+  const s = demo.colors;
+  const col = (f: Face, r: number, c: number) => (demo.vis[f][r][c] === '1' ? s[f][r][c] : GREY);
+  const cells: { x: number; y: number; fill: string; small?: boolean }[] = [];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) cells.push({ x: 2 + c, y: 2 + r, fill: col('top', r, c) });
+  for (let c = 0; c < 3; c++) {
+    cells.push({ x: 2 + c, y: 5, fill: col('front', 0, c) });
+    cells.push({ x: 4 - c, y: 1, fill: col('back', 0, c) });
+    cells.push({ x: 5, y: 4 - c, fill: col('right', 0, c) });
+    cells.push({ x: 1, y: 2 + c, fill: col('left', 0, c) });
+  }
+  // each side's center, drawn smaller just beyond its strip
+  cells.push({ x: 3, y: 6, fill: s.front[1][1], small: true }, { x: 3, y: 0, fill: s.back[1][1], small: true }, { x: 6, y: 3, fill: s.right[1][1], small: true }, { x: 0, y: 3, fill: s.left[1][1], small: true });
+  const ticks: [number, number][] = [];
+  if (marks === 'edges') {
+    const where: [number, number][] = [[3, 5], [5, 3], [3, 1], [1, 3]]; // front, right, back, left
+    edgeMatches(s).forEach((ok, i) => { if (ok) ticks.push(where[i]); });
+  } else {
+    const where: [number, number][] = [[4, 4], [4, 2], [2, 2], [2, 4]]; // front-right, back-right, back-left, front-left
+    TOP_CORNERS.forEach((k, i) => { if (cornerInSpot(s, k)) ticks.push(where[i]); });
+  }
+  const U = 10;
+  const font = Math.max(4, (14 / size) * 70);
+  const h = 70 + font + 2;
+  return (
+    <svg viewBox={`0 0 70 ${h}`} width={size} height={size * (h / 70)} role="img" aria-label={`Looking down at the top: ${ticks.length} ${marks === 'edges' ? 'edges match' : 'corners are home'}`}>
+      <rect x={U * 2 - 1} y={U * 2 - 1} width={U * 3 + 2} height={U * 3 + 2} rx="2" fill={CUBE_COLORS.black} />
+      {cells.map((c, i) => c.small
+        ? <circle key={i} cx={c.x * U + U / 2} cy={c.y * U + U / 2} r={U * 0.36} fill={c.fill} stroke={CUBE_COLORS.black} strokeWidth="0.8" />
+        : <rect key={i} x={c.x * U + 0.6} y={c.y * U + 0.6} width={U - 1.2} height={U - 1.2} rx="1.5" fill={c.fill} stroke={CUBE_COLORS.black} strokeWidth="0.8" />)}
+      {ticks.map(([x, y], i) => (
+        <g key={i}>
+          <circle cx={x * U + U / 2} cy={y * U + U / 2} r={U * 0.4} fill="#16a34a" stroke="#fff" strokeWidth="0.8" />
+          <path d={`M ${x * U + 2.9} ${y * U + 5.2} l 1.6 1.7 l 3 -3.6`} fill="none" stroke="#fff" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      ))}
+      <text x="35" y={70 + font} textAnchor="middle" fontSize={font} fontWeight="600" fill="currentColor">▼ YOU</text>
     </svg>
   );
 };
@@ -99,7 +147,7 @@ export const PieceTypes = () => {
         <div key={it.name} className="flex flex-col items-center rounded-xl border border-border bg-background px-1 py-1.5 text-center">
           <svg viewBox="0 0 56 56" width={48} height={48} role="img" aria-label={`${it.name.toLowerCase()} piece`}>{it.art}</svg>
           <span className="text-sm font-bold text-foreground">{it.name}</span>
-          <span className="text-xs leading-tight text-muted-foreground">{it.note}</span>
+          <span className="text-sm leading-tight text-muted-foreground">{it.note}</span>
         </div>
       ))}
     </div>

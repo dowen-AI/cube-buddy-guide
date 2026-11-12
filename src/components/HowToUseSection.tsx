@@ -4,12 +4,12 @@ const tips = [
   {
     icon: BookOpen,
     title: "1. Hold your cube like the picture",
-    description: "Every screen shows which color goes on top. Keep your cube the same way and you can't get lost."
+    description: "Yellow on top, white on the bottom, for the whole solve. You never flip the cube over."
   },
   {
     icon: RotateCcw,
     title: "2. Do one turn, then tap",
-    description: "The screen shows a single turn with an arrow. Do it on your cube, tap \"I did it\", and the next turn appears."
+    description: "The cube on screen turns one layer, over and over, until you have done the same on yours. Tap \"I did it\" for the next turn."
   },
   {
     icon: Lightbulb,
@@ -19,7 +19,7 @@ const tips = [
   {
     icon: CheckCircle2,
     title: "4. Stop any time",
-    description: "Your place is saved, even in the middle of a stage. Each stage ends with one sentence to remember, and the cheat sheet at the bottom has all seven."
+    description: "Your exact place is saved, even in the middle of a set of turns. Need bigger text or the moves read out loud? Tap the options button in any stage."
   }
 ];
 
@@ -48,7 +48,7 @@ export const HowToUseSection = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground mb-1">{tip.title}</h3>
-                  <p className="text-sm text-muted-foreground">{tip.description}</p>
+                  <p className="text-base text-muted-foreground">{tip.description}</p>
                 </div>
               </div>
             </div>

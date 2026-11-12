@@ -89,7 +89,7 @@ export const FacePainter = ({
   highlight: Set<string>;
   disabled?: boolean;
 }) => (
-  <div role="group" aria-label={`${FACE_LABELS[face].name} face (${FACE_LABELS[face].letter})`} className="mx-auto grid w-fit grid-cols-3 gap-1.5 rounded-xl bg-foreground/85 p-1.5">
+  <div role="group" aria-label={`${FACE_LABELS[face].name} face (${FACE_LABELS[face].letter})`} className="mx-auto grid w-fit grid-cols-3 gap-1.5 rounded-xl bg-[#1a1a1a] p-1.5">
     {grid.map((row, r) =>
       row.map((color, c) => {
         const isCenter = r === 1 && c === 1;
@@ -105,11 +105,11 @@ export const FacePainter = ({
               'h-14 w-14 rounded-lg border-2 border-black/10 transition-transform',
               !isCenter && !disabled && 'active:scale-95',
               isCenter && 'cursor-default',
-              flagged && 'ring-4 ring-fuchsia-500 ring-offset-2 ring-offset-foreground animate-pulse',
+              flagged && 'ring-4 ring-fuchsia-500 ring-offset-2 ring-offset-[#1a1a1a] animate-pulse',
             )}
             style={{ backgroundColor: color }}
           >
-            {isCenter ? <span className="text-[10px] font-bold uppercase text-black/50">fixed</span> : null}
+            {isCenter ? <span className="text-sm font-bold text-black/60">fixed</span> : null}
           </button>
         );
       }),
@@ -132,7 +132,7 @@ export const NetOverview = ({
   done: Set<FaceName>;
 }) => {
   const panel = (face: FaceName, pos: string) => {
-    const { name, letter } = FACE_LABELS[face];
+    const { name } = FACE_LABELS[face];
     const center = COLOR_NAMES[cubeState[face][1][1]];
     return (
       <button
@@ -141,12 +141,12 @@ export const NetOverview = ({
         aria-label={`Paint the ${name} face (${center} center)`}
         aria-pressed={face === current}
         className={cn(
-          'relative flex min-h-12 min-w-12 flex-col items-center justify-center gap-0.5 rounded-lg border-2 p-1',
+          'relative flex min-h-14 min-w-14 flex-col items-center justify-center gap-0.5 rounded-lg border-2 p-1',
           face === current ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-muted',
           pos,
         )}
       >
-        <span aria-hidden="true" className="grid grid-cols-3 gap-px rounded-sm bg-foreground/80 p-px">
+        <span aria-hidden="true" className="grid grid-cols-3 gap-px rounded-sm bg-[#1a1a1a] p-0.5">
           {cubeState[face].map((row, r) =>
             row.map((color, c) => (
               <span
@@ -157,7 +157,7 @@ export const NetOverview = ({
             )),
           )}
         </span>
-        <span aria-hidden="true" className="text-[10px] font-medium leading-none text-muted-foreground">{name} ({letter})</span>
+        <span aria-hidden="true" className="text-sm font-medium leading-none text-muted-foreground">{name}</span>
         {done.has(face) ? <Check aria-hidden="true" className="absolute right-0 top-0 h-3.5 w-3.5 text-cube-green" /> : null}
       </button>
     );
@@ -184,7 +184,7 @@ export const ColorPalette = ({ selected, onSelect }: { selected: string; onSelec
         aria-pressed={selected === color}
         onClick={() => onSelect(color)}
         className={cn(
-          'flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all',
+          'flex h-14 w-11 items-center justify-center rounded-2xl border-2 transition-all min-[400px]:w-12',
           selected === color ? 'scale-110 border-primary shadow-md ring-2 ring-primary ring-offset-2 ring-offset-card' : 'border-border',
         )}
         style={{ backgroundColor: color }}

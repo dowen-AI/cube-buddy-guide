@@ -11,6 +11,8 @@ import { InteractiveStageCard } from '@/components/InteractiveStageCard';
 import { NotationReference } from '@/components/NotationReference';
 import { CelebrationModal } from '@/components/CelebrationModal';
 import { CheatSheet } from '@/components/CheatSheet';
+import { SiteFooter } from '@/components/SiteFooter';
+import { clearGuideMemory } from '@/lib/guideMemory';
 import { interactiveStagesData } from '@/data/interactiveStagesData';
 
 const Index = () => {
@@ -81,6 +83,17 @@ const Index = () => {
     document.getElementById(`stage-${stageId}`)?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Remounts every guide and the solver after a full reset, so nothing stale stays on screen.
+  const [resetKey, setResetKey] = useState(0);
+  const handleResetAll = () => {
+    resetProgress();
+    clearGuideMemory();
+    setOpenStageId(null);
+    setShowCelebration(false);
+    setResetKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleReset = () => {
     resetProgress();
     setShowCelebration(false);
@@ -93,12 +106,12 @@ const Index = () => {
         <title>Rubik's Cube Beginner's Guide - Learn to Solve in 7 Simple Stages</title>
         <meta
           name="description"
-          content="Learn how to solve a Rubik's Cube with our beginner-friendly, visual guide. Interactive 3D cubes, simple instructions, notation explained in plain English, and progress tracking."
+          content="Learn to solve a Rubik's Cube one turn at a time. A moving 3D cube shows every turn in plain words. No letters to decode, no flipping the cube, and your place is saved."
         />
         <meta name="keywords" content="Rubik's Cube, solve Rubik's Cube, beginner guide, tutorial, 3x3 cube, Layer by Layer method" />
       </Helmet>
 
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen bg-background print:min-h-0">
         {/* Sticky header: progress, theme toggle, and (below 1440px) stage navigation */}
         <ProgressBar
           percentage={progressPercentage}
@@ -113,23 +126,21 @@ const Index = () => {
         <StageSidebar progress={progress} activeStage={activeStage} onStageClick={handleStageClick} />
 
         {/* Hero */}
-        <HeroSection />
+        <HeroSection onStart={() => setOpenStageId(1)} />
 
         {/* How to Use */}
         <HowToUseSection />
 
-        {/* Notation Reference: before the solver and the guides, which both use notation */}
-        <NotationReference />
 
         {/* Instant Solver */}
-        <CubeSolverSection onPlayingChange={setSolverPlaying} />
+        <CubeSolverSection key={`solver-${resetKey}`} onPlayingChange={setSolverPlaying} />
 
         {/* Stages */}
         <section className="py-16 px-4">
           <div className="max-w-4xl mx-auto space-y-12">
             {interactiveStagesData.map((stage) => (
               <InteractiveStageCard
-                key={stage.id}
+                key={`${stage.id}-${resetKey}`}
                 stage={stage}
                 isComplete={progress[stage.id] || false}
                 onToggleComplete={() => toggleStage(stage.id)}
@@ -144,12 +155,11 @@ const Index = () => {
         {/* The whole method on one page, for remembering it afterwards */}
         <CheatSheet />
 
+        {/* Cubing letters: optional, after everything else */}
+        <NotationReference />
+
         {/* Footer */}
-        <footer className="py-12 px-4 text-center border-t border-border">
-          <p className="text-muted-foreground">
-            Built with ❤️ to help everyone solve the Rubik's Cube
-          </p>
-        </footer>
+        <SiteFooter onResetAll={handleResetAll} />
 
         {/* Celebration Modal */}
         <CelebrationModal

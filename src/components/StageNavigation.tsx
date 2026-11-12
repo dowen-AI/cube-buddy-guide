@@ -12,7 +12,7 @@ interface StageNavigationProps {
 const StageBadge = ({ id, isComplete, isActive }: { id: number; isComplete: boolean; isActive: boolean }) => (
   <span
     className={cn(
-      'flex shrink-0 items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition-all',
+      'flex shrink-0 items-center justify-center w-7 h-7 rounded-full text-sm font-bold transition-all',
       isComplete
         ? 'bg-cube-green text-white'
         : isActive
@@ -29,7 +29,7 @@ const StageBadge = ({ id, isComplete, isActive }: { id: number; isComplete: bool
 export const StageSidebar = ({ progress, activeStage, onStageClick }: StageNavigationProps) => (
   <nav aria-label="Stages" className="hidden min-[1440px]:block fixed left-4 top-1/2 -translate-y-1/2 z-40 w-60">
     <div className="bg-card/95 backdrop-blur-sm rounded-xl border border-border shadow-card p-4">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Stages</h3>
+      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Stages</h3>
       <ul className="space-y-1">
         {interactiveStagesData.map((stage) => {
           const isComplete = !!progress[stage.id];
@@ -65,7 +65,7 @@ export const StageStrip = ({ progress, activeStage, onStageClick }: StageNavigat
   return (
     <nav aria-label="Stages" className="min-[1440px]:hidden border-t border-border">
       <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1">
-        <ol className="flex gap-1">
+        <ol className="flex gap-0.5">
           {interactiveStagesData.map((stage) => {
             const isComplete = !!progress[stage.id];
             const isActive = activeStage === stage.id;
@@ -76,7 +76,7 @@ export const StageStrip = ({ progress, activeStage, onStageClick }: StageNavigat
                   aria-current={isActive ? 'step' : undefined}
                   aria-label={`Stage ${stage.id}: ${stage.title}${isComplete ? ' (complete)' : ''}`}
                   title={stage.title}
-                  className={cn('flex h-12 w-12 items-center justify-center rounded-lg transition-colors hover:bg-muted', isActive && 'bg-primary/10')}
+                  className={cn('flex h-14 w-11 items-center justify-center rounded-lg transition-colors hover:bg-muted min-[400px]:w-12', isActive && 'bg-primary/10')}
                 >
                   <StageBadge id={stage.id} isComplete={isComplete} isActive={isActive} />
                 </button>
@@ -84,7 +84,7 @@ export const StageStrip = ({ progress, activeStage, onStageClick }: StageNavigat
             );
           })}
         </ol>
-        <p className="basis-full truncate pb-1 text-xs font-medium text-foreground md:basis-auto md:pb-0 md:text-sm" data-testid="active-stage-name">
+        <p className="basis-full truncate pb-1 text-sm font-medium text-foreground md:basis-auto md:pb-0" data-testid="active-stage-name">
             {active ? `Stage ${active.id}: ${active.title}` : <span className="text-muted-foreground">7 stages — tap a number to jump to one</span>}
           </p>
       </div>

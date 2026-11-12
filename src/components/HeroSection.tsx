@@ -1,10 +1,9 @@
 import { RubiksCube3D, cubeStates } from './RubiksCube3D';
 import { ChevronDown } from 'lucide-react';
 
-export const HeroSection = () => {
-  const scrollToContent = () => {
-    document.getElementById('stage-1')?.scrollIntoView({ behavior: 'smooth' });
-  };
+export const HeroSection = ({ onStart }: { onStart: () => void }) => {
+  // One tap from here to the first screen of Stage 1.
+  const scrollToContent = onStart;
 
   return (
     <section className="min-h-screen flex flex-col items-center justify-center px-4 pt-40 pb-20 md:pt-36 min-[1440px]:pt-24 gradient-hero">
@@ -36,7 +35,7 @@ export const HeroSection = () => {
           >
             Just solve my cube for me
           </button>
-          <p className="text-sm text-muted-foreground">Grab your cube. You only need 5 moves, one turn at a time.</p>
+          <p className="text-base text-muted-foreground">Grab your cube. One turn at a time, with a moving picture for every turn.</p>
         </div>
 
         {/* Subtitle */}
@@ -51,7 +50,7 @@ export const HeroSection = () => {
             7 Simple Stages
           </span>
           <span className="px-4 py-2 bg-cube-blue/10 text-cube-blue rounded-full text-sm font-medium">
-            Interactive 3D Cubes
+            Moving 3D Cube
           </span>
           <span className="px-4 py-2 bg-cube-green/10 text-cube-green rounded-full text-sm font-medium">
             Progress Tracking

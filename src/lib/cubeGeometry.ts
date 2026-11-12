@@ -43,3 +43,21 @@ export const isInMoveLayer = (move: MoveName, x: number, y: number, z: number) =
 export const MOVE_FACE: Record<string, Face> = {
   R: 'right', L: 'left', U: 'top', D: 'bottom', F: 'front', B: 'back',
 };
+
+// "Any color" stickers in teaching pictures: a dark slate that can't be mistaken for white.
+export const ANY_COLOR = '#4b5563';
+
+// How the turning layer spins on screen: rotation axis and signed quarter turns
+// (right-hand rule about +x / +y / +z). A clockwise turn of a face, seen from
+// outside that face, is a negative rotation about the axis pointing out of it.
+// tests/cubeGeometry.test.ts checks every move against the move engine.
+export const moveRotation = (move: MoveName): { axis: 'x' | 'y' | 'z'; quarters: number } => {
+  const [axis, side] = LAYER[move[0]];
+  const amount = move.endsWith('2') ? 2 : move.endsWith("'") ? -1 : 1;
+  return { axis, quarters: -side * amount };
+};
+
+// Which extra camera shows the face a move turns, when the main view can't see it.
+export type CubeView = 'top' | 'bottom' | 'left' | 'back';
+export const hiddenFaceView = (move: MoveName): Exclude<CubeView, 'top'> | null =>
+  move[0] === 'D' ? 'bottom' : move[0] === 'L' ? 'left' : move[0] === 'B' ? 'back' : null;

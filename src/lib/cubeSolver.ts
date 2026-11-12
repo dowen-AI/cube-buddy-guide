@@ -1,4 +1,3 @@
-import Cube from 'cubejs';
 import { CubeState, CUBE_COLORS, MoveName } from '@/hooks/useCubeState';
 
 type FaceLetter = 'U' | 'R' | 'F' | 'D' | 'L' | 'B';
@@ -278,14 +277,26 @@ export const validateFacelets = (facelets: string): { valid: boolean; error?: st
 
   const cornerTwist = co.reduce((a, b) => a + b, 0) % 3;
   const edgeFlip = eo.reduce((a, b) => a + b, 0) % 2;
+  // When a piece sits in its own home spot but turned the wrong way, that is almost
+  // certainly the one that was painted wrong: name it and point at its stickers.
+  const twistedHome = co.map((o, slot) => (o !== 0 && cp[slot] === slot ? slot : -1)).filter((x) => x >= 0);
+  const flippedHome = eo.map((o, slot) => (o !== 0 && ep[slot] === slot ? slot : -1)).filter((x) => x >= 0);
   if (cornerTwist !== 0) {
-    return { valid: false, error: "Every piece has real colors, but one corner looks twisted in its spot, which can't happen on a real cube. One corner's stickers are probably painted in the wrong order (for example its top and front colors swapped). Re-check each corner's three stickers against your cube." };
+    if (twistedHome.length === 1) {
+      const slot = twistedHome[0];
+      return { valid: false, error: `${capitalize(cornerWhere(slot))} has the right three colors but is twisted in its spot, which can't happen on a real cube. Its three stickers are painted in the wrong order. Look at that corner on your cube and re-paint its three stickers.`, highlight: CORNERS[slot].indices };
+    }
+    return { valid: false, error: "Every piece has real colors, but one corner is twisted in its spot, which can't happen on a real cube. One corner's three stickers are painted in the wrong order. Check the 8 corners one at a time: for each, compare its three stickers with your cube.", highlight: twistedHome.flatMap((slot) => CORNERS[slot].indices) };
   }
   if (edgeFlip !== 0) {
-    return { valid: false, error: "Every piece has real colors, but one edge looks flipped in place, which can't happen on a real cube. Its two stickers are probably swapped. Re-check each edge's two stickers against your cube." };
+    if (flippedHome.length === 1) {
+      const slot = flippedHome[0];
+      return { valid: false, error: `${capitalize(edgeWhere(slot))} has the right two colors but is flipped, which can't happen on a real cube. Its two stickers are swapped. Look at that edge on your cube and swap the two colors you painted.`, highlight: EDGES[slot].indices };
+    }
+    return { valid: false, error: "Every piece has real colors, but one edge is flipped, which can't happen on a real cube. One edge's two stickers are swapped. Check the 12 edges one at a time: for each, compare its two stickers with your cube.", highlight: flippedHome.flatMap((slot) => EDGES[slot].indices) };
   }
   if (permutationParity(cp) !== permutationParity(ep)) {
-    return { valid: false, error: "Every piece has real colors, but two pieces look swapped, which can't happen on a real cube. Look for two stickers you may have painted in each other's spots." };
+    return { valid: false, error: "Every piece has real colors, but two pieces are in each other's places, which can't happen on a real cube. Look for two edges, or two corners, that you painted the wrong way round, and check each against your cube." };
   }
 
   return { valid: true };
@@ -293,40 +304,44 @@ export const validateFacelets = (facelets: string): { valid: boolean; error?: st
 
 const SOLVED_FACELETS = 'U'.repeat(9) + 'R'.repeat(9) + 'F'.repeat(9) + 'D'.repeat(9) + 'L'.repeat(9) + 'B'.repeat(9);
 
-let solverReadyPromise: Promise<void> | null = null;
+// Where the search runs: background workers in the browser (so the page never
+// freezes and the search can be given a time budget), or directly when workers
+// are not available (tests, very old browsers).
+const canUseWorkers = () => typeof Worker !== 'undefined' && typeof window !== 'undefined';
 
-// cubejs's pruning-table build is a one-time, CPU-heavy synchronous call.
-// We defer it to a macrotask so callers can render a loading state first.
-export const ensureSolverReady = (): Promise<void> => {
-  if (!solverReadyPromise) {
-    solverReadyPromise = new Promise((resolve) => {
-      setTimeout(() => {
-        Cube.initSolver();
-        resolve();
-      }, 0);
-    });
-  }
-  return solverReadyPromise;
-};
+export interface SolveResult { moves: MoveName[]; exact: boolean }
 
-export const solveCubeState = async (state: CubeState): Promise<MoveName[]> => {
+export const solveCube = async (state: CubeState, onProgress?: (bestSoFar: number) => void): Promise<SolveResult> => {
   const facelets = cubeStateToFacelets(state);
   const validation = validateFacelets(facelets);
   if (!validation.valid) {
     throw new SolverError(validation.error ?? 'This cube state cannot be solved.', validation.highlight);
   }
+  if (facelets === SOLVED_FACELETS) return { moves: [], exact: true };
 
-  if (facelets === SOLVED_FACELETS) {
-    return [];
+  let solution: string | null = null;
+  let exact = false;
+  if (canUseWorkers()) {
+    try {
+      const { solveInWorkers } = await import('./solverPool');
+      const found = await solveInWorkers(facelets, onProgress);
+      if (found) { solution = found.solution; exact = found.exact; }
+    } catch {
+      solution = null; // fall through to the direct search below
+    }
   }
-
-  await ensureSolverReady();
-
-  const cube = Cube.fromString(facelets);
-  const solution = cube.solve();
-  if (typeof solution !== 'string') {
-    throw new SolverError('Could not find a solution for this cube state.');
+  if (solution === null) {
+    // let the caller paint a "working…" state before the tables are built
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const { default: Cube } = await import('cubejs');
+    const { solveWithoutWorkers } = await import('./solverSearch');
+    const C = Cube as unknown as import('./solverSearch').CubeClass & { initSolver: () => void };
+    C.initSolver();
+    const found = solveWithoutWorkers(C, facelets);
+    if (found) { solution = found.solution; exact = found.exact; }
   }
-
-  return solution.trim().split(/\s+/).filter(Boolean) as MoveName[];
+  if (solution === null) throw new SolverError('Could not find a solution for this cube state.');
+  return { moves: solution.trim().split(/\s+/).filter(Boolean) as MoveName[], exact };
 };
+
+export const solveCubeState = async (state: CubeState): Promise<MoveName[]> => (await solveCube(state)).moves;

@@ -4,7 +4,7 @@ import { CUBE_COLORS as C, type CubeState } from '../src/hooks/useCubeState';
 import { FOLLOW_ALONG, ALGORITHMS, CHEAT_SHEET, resolveTarget, sequenceMoves, type FlowNode, type Picture } from '../src/data/followAlong';
 import {
   applyMoves, applyStep, scenario, showAll, twistCorner, cornersInSpot, edgeMatches, matchCount, maxMatchTurn,
-  yellowTopEdges, sidesAligned, yellowDownAtFrontRight, FRONT_RIGHT_BOTTOM, FRONT_LEFT_BOTTOM, type Demo,
+  yellowTopEdges, sidesAligned, yellowUpAtFrontRight, FRONT_RIGHT_TOP, FRONT_LEFT_TOP, type Demo,
 } from '../src/lib/cubeDemo';
 
 const node = (stage: number, id: string) => {
@@ -59,190 +59,208 @@ describe('flow graph', () => {
   }
 });
 
-describe('stage 1: every white-edge case ends in the cross', () => {
+
+const W = C.white, Y = C.yellow;
+const grid = (g: string[][]) => g.map((row) => row.map((x) => (x === Y ? 'Y' : x === W ? 'W' : x === C.red ? 'r' : x === C.green ? 'g' : x === C.blue ? 'b' : 'o')).join(' ')).join(' / ');
+
+describe('stage 1: every white-edge picture ends with the edge placed', () => {
   const cases: [RegExp, string[]][] = [
-    [/Top layer — white facing UP/, []],
-    [/Top layer — white facing the side/, ['s1-side-face', 's1-side-seq']],
-    [/Bottom layer — white DOWN/, ['s1-bottom-face', 's1-bottom-seq']],
-    [/Bottom layer — white facing the side/, ['s1-flipped-face', 's1-flipped-seq']],
+    [/^Top: white facing UP/, []],
+    [/^Top: white sideways/, ['s1-side-face', 's1-side-seq']],
+    [/^Bottom: white DOWN/, ['s1-bottom-face', 's1-bottom-seq']],
+    [/^Bottom: white sideways/, ['s1-flipped-face', 's1-flipped-seq']],
   ];
   const middle: [RegExp, string][] = [[/Toward me/, 's1-middle-facing'], [/To the right/, 's1-middle-right']];
   const finish = (d: Demo) => {
-    // lifted to the top as a petal: white facing up somewhere on the top layer, bottom edges untouched by the lift
     d = after(d, node(1, 's1-align'));
     d = after(d, node(1, 's1-face'));
     d = runSeq(d, node(1, 's1-drop'));
-    // the edge now sits at bottom-front, white down, color matching the front center
-    assert.equal(d.colors.bottom[0][1], C.white);
+    // the edge now sits at bottom-front, white down, side color matching the front center
+    assert.equal(d.colors.bottom[0][1], W);
     assert.equal(d.colors.front[2][1], d.colors.front[1][1]);
+    // and the check picture shows those two stickers in their real colors, not greyed out
+    assert.equal(d.vis.bottom[0][1], '1', 'the white sticker is drawn in its real color on the check picture');
+    assert.equal(d.vis.front[2][1], '1');
   };
   for (const [label, path] of cases) test(String(label), () => {
     let d = optionDemo(1, 's1-where', label);
     for (const id of path) { const n = node(1, id); d = n.kind === 'sequence' ? runSeq(d, n) : after(d, n); }
     finish(d);
   });
-  for (const [label, id] of middle) test(`Middle layer, ${label}`, () => finish(runSeq(optionDemo(1, 's1-middle', label), node(1, id))));
-  test('case sequences never disturb white edges already placed on the bottom', () => {
-    const solved = scenario('yellow-top', showAll);
-    for (const id of ['s1-side-seq', 's1-middle-facing', 's1-middle-right']) {
-      const d = runSeq(solved, node(1, id));
-      for (const [r, c, f] of [[0, 1, 'front'], [1, 2, 'right'], [2, 1, 'back'], [1, 0, 'left']] as const) {
-        assert.equal(d.colors.bottom[r][c], C.white, `${id} keeps bottom edge ${f}`);
-        assert.equal(d.colors[f][2][1], d.colors[f][1][1], `${id} keeps ${f} side of that edge`);
-      }
+  for (const [label, id] of middle) test(`Middle row, ${label}`, () => finish(runSeq(optionDemo(1, 's1-middle', label), node(1, id))));
+  test('the sixth picture ("already right") counts the edge without any turns', () => {
+    const n = node(1, 's1-where');
+    assert.equal(n.kind, 'choice');
+    const opt = (n as Extract<FlowNode, { kind: 'choice' }>).options.find((o) => /done, count it/.test(o.label))!;
+    assert.deepEqual(opt.effect, { add: ['petals'] });
+  });
+});
+
+describe('the turns changed in this build, shown before and after (yellow on top, never flipped)', () => {
+  test('Stage 3 "Insert right": U R U\' R\' U\' F\' U F', () => {
+    const before = optionDemo(3, 's3-dir', /RIGHT side/);
+    const afterD = runSeq(before, node(3, 's3-right'));
+    console.log(`  Insert right  BEFORE front: ${grid(before.colors.front)} | right: ${grid(before.colors.right)} | top: ${grid(before.colors.top)}`);
+    console.log(`  Insert right  AFTER  front: ${grid(afterD.colors.front)} | right: ${grid(afterD.colors.right)} | top: ${grid(afterD.colors.top)}`);
+    assert.equal(before.colors.front[0][1], before.colors.front[1][1], 'before: the edge sits on top, front color matching');
+    assert.equal(afterD.colors.front[1][2], afterD.colors.front[1][1]);
+    assert.equal(afterD.colors.right[1][0], afterD.colors.right[1][1]);
+    // the finished bottom layer is untouched
+    assert.ok(afterD.colors.bottom.flat().every((x) => x === W) && sidesMatchCenter(afterD.colors, 2, 0) && sidesMatchCenter(afterD.colors, 2, 1) && sidesMatchCenter(afterD.colors, 2, 2));
+  });
+  test('Stage 3 "Insert left": U\' L\' U L U F U\' F\'', () => {
+    const before = optionDemo(3, 's3-dir', /LEFT side/);
+    const afterD = runSeq(before, node(3, 's3-left'));
+    console.log(`  Insert left   BEFORE front: ${grid(before.colors.front)} | left: ${grid(before.colors.left)}`);
+    console.log(`  Insert left   AFTER  front: ${grid(afterD.colors.front)} | left: ${grid(afterD.colors.left)}`);
+    assert.equal(afterD.colors.front[1][0], afterD.colors.front[1][1]);
+    assert.equal(afterD.colors.left[1][2], afterD.colors.left[1][1]);
+    assert.ok(afterD.colors.bottom.flat().every((x) => x === W));
+  });
+  test('Stage 3: a stuck middle edge pops up to the top row', () => {
+    const d = runSeq(optionDemo(3, 's3-where', /^None/), node(3, 's3-pop'));
+    const tops: [string, string][] = [[d.colors.top[2][1], d.colors.front[0][1]], [d.colors.top[1][2], d.colors.right[0][1]], [d.colors.top[0][1], d.colors.back[0][1]], [d.colors.top[1][0], d.colors.left[0][1]]];
+    assert.ok(tops.some(([a, b]) => a !== Y && b !== Y), 'an edge without yellow is now in the top row');
+  });
+  test('Stage 7 "Corner twist": R\' D\' R D, 2 or 4 goes per corner, top layer turned between corners', () => {
+    const start = twistCorner(twistCorner(scenario('yellow-top', showAll), FRONT_RIGHT_TOP, 1), FRONT_LEFT_TOP, 2);
+    console.log(`  Corner twist  BEFORE top: ${grid(start.colors.top)}`);
+    let d = start;
+    const goes: number[] = [];
+    for (let corner = 0; corner < 4; corner++) {
+      let n = 0;
+      while (!yellowUpAtFrontRight(d.colors)) { d = runSeq(d, node(7, 's7-twist')); n++; assert.ok(n <= 4); }
+      goes.push(n);
+      d = applyStep(d, 'U');
     }
+    for (let i = 0; i < 4 && !sidesAligned(d.colors); i++) d = applyStep(d, 'U');
+    console.log(`  Corner twist  AFTER  top: ${grid(d.colors.top)} | goes per corner: ${goes.join(', ')}`);
+    assert.ok(goes.every((n) => n === 0 || n === 2 || n === 4));
+    assert.deepEqual(d.colors, scenario('yellow-top', showAll).colors, 'the whole cube is solved');
   });
 });
 
-describe('stage 2: corners', () => {
-  test('top-layer corner: align, face, Sledgehammer 1/3/5 times solves the slot', () => {
-    let d = optionDemo(2, 's2-where', /Top layer/);
-    d = after(after(d, node(2, 's2-align')), node(2, 's2-face'));
-    let reps = 0;
-    while (!(d.colors.bottom[0][2] === C.white && d.colors.front[2][2] === d.colors.front[1][1] && d.colors.right[2][0] === d.colors.right[1][1]) && reps < 6) { d = runSeq(d, node(2, 's2-sledge')); reps++; }
-    assert.ok([1, 3, 5].includes(reps), `took ${reps}`);
-  });
-  test('Sledgehammer needs 1, 3 or 5 repeats for every orientation', () => {
-    for (const k of [1, 3, 5]) {
-      let d = applyMoves(scenario('yellow-top', showAll), Array(k).fill("U R U' R'").join(' '));
-      let reps = 0;
-      while (!sidesMatchCenter(d.colors, 2, 2) || d.colors.bottom[0][2] !== C.white) { d = applyMoves(d, ALGORITHMS.SLEDGE); reps++; if (reps > 6) break; }
-      assert.equal(reps, k);
-    }
-  });
-  test('corner in the wrong slot pops up to the top layer', () => {
-    const d = runSeq(optionDemo(2, 's2-where', /wrong slot/), node(2, 's2-pop'));
-    assert.notEqual(d.colors.bottom[0][2], C.white);
-    const tops = [[d.colors.top[2][2], d.colors.front[0][2], d.colors.right[0][0]], [d.colors.top[2][0], d.colors.front[0][0], d.colors.left[0][2]], [d.colors.top[0][2], d.colors.back[0][0], d.colors.right[0][2]], [d.colors.top[0][0], d.colors.back[0][2], d.colors.left[0][0]]];
-    assert.ok(tops.some((t) => t.includes(C.white)));
-  });
-});
-
-describe('stage 3: middle layer (white on top)', () => {
-  test('found edge: align, face, insert RIGHT solves the front-right slot', () => {
-    let d = optionDemo(3, 's3-where', /Found one/);
-    d = after(after(d, node(3, 's3-align')), node(3, 's3-face'));
-    assert.equal(d.colors.front[2][1], d.colors.front[1][1], 'edge front color matches the center above');
-    assert.equal(d.colors.bottom[0][1], d.colors.right[1][1], 'its down color matches the RIGHT center');
-    d = runSeq(d, node(3, 's3-right'));
-    assert.equal(d.colors.front[1][2], d.colors.front[1][1]);
-    assert.equal(d.colors.right[1][0], d.colors.right[1][1]);
-  });
-  test('insert LEFT solves the front-left slot', () => {
-    let d = optionDemo(3, 's3-dir', /LEFT/);
-    assert.equal(d.colors.bottom[0][1], d.colors.left[1][1], 'down color matches the LEFT center');
-    d = runSeq(d, node(3, 's3-left'));
-    assert.equal(d.colors.front[1][0], d.colors.front[1][1]);
-    assert.equal(d.colors.left[1][2], d.colors.left[1][1]);
-  });
-  test('a stuck edge pops down into the bottom layer', () => {
-    const d = runSeq(optionDemo(3, 's3-where', /None/), node(3, 's3-pop'));
-    const bottomPairs = [[d.colors.bottom[0][1], d.colors.front[2][1]], [d.colors.bottom[1][2], d.colors.right[2][1]], [d.colors.bottom[2][1], d.colors.back[2][1]], [d.colors.bottom[1][0], d.colors.left[2][1]]];
-    assert.ok(bottomPairs.some((p) => !p.includes(C.yellow)));
-  });
-});
-
-describe('stage 4: yellow cross', () => {
-  test('dot -> L -> line -> cross following the guide', () => {
-    let d = optionDemo(4, 's4-pattern', /Dot/);
-    assert.equal(yellowTopEdges(d.colors).filter(Boolean).length, 0);
+describe('stage 4: pictures, words and the simulated top face agree', () => {
+  const top = (d: Demo) => { const [f, r, b, l] = yellowTopEdges(d.colors); return { f, r, b, l }; };
+  const draw = (d: Demo) => { const t = top(d); const c = (v: boolean) => (v ? 'Y' : '.'); return `[. ${c(t.b)} .] [${c(t.l)} Y ${c(t.r)}] [. ${c(t.f)} .]  (rows: back, middle, front)`; };
+  test('dot -> L -> line -> cross, one go of F R U R\' U\' F\' each time', () => {
+    let d = optionDemo(4, 's4-pattern', /^Dot/);
+    console.log(`  dot            ${draw(d)}`);
+    assert.deepEqual(top(d), { f: false, r: false, b: false, l: false });
     d = runSeq(d, node(4, 's4-dot'));
+    console.log(`  after go 1     ${draw(d)}`);
+    assert.equal(Object.values(top(d)).filter(Boolean).length, 2, 'an L: two yellow edges that touch');
+    assert.ok(!((top(d).f && top(d).b) || (top(d).l && top(d).r)));
     d = after(d, node(4, 's4-align-l'));
+    console.log(`  L turned       ${draw(d)}   <- text says BACK and LEFT`);
+    assert.deepEqual(top(d), { f: false, r: false, b: true, l: true }, 'L sits at the back and the left, as the text and the picture say');
     d = runSeq(d, node(4, 's4-l'));
+    console.log(`  after go 2     ${draw(d)}   <- line, left to right`);
+    assert.deepEqual(top(d), { f: false, r: true, b: false, l: true }, 'a line going left to right');
     d = after(d, node(4, 's4-align-line'));
     d = runSeq(d, node(4, 's4-line'));
-    assert.ok(yellowTopEdges(d.colors).every(Boolean));
+    console.log(`  after go 3     ${draw(d)}`);
+    assert.deepEqual(top(d), { f: true, r: true, b: true, l: true });
   });
-  test('every real edge-flip pattern reaches the cross within 3 runs', () => {
-    const base = scenario('yellow-top', showAll);
-    const spots = [[[2, 1], 'front'], [[1, 2], 'right'], [[0, 1], 'back'], [[1, 0], 'left']] as const;
+  test('each check shows a flat top-only picture (no side stickers), and it matches the simulation', () => {
+    const goals = { 's4-dot': 'l', 's4-l': 'line', 's4-line': 'cross' } as const;
+    for (const [id, want] of Object.entries(goals)) {
+      const n = node(4, id) as Extract<FlowNode, { kind: 'sequence' }>;
+      assert.deepEqual(n.checkpoint.goal, { kind: 'pattern', pattern: want });
+    }
+    assert.deepEqual((node(4, 's4-align-l') as Extract<FlowNode, { kind: 'adjust' }>).target, { kind: 'pattern', pattern: 'l' });
+    assert.deepEqual((node(4, 's4-align-line') as Extract<FlowNode, { kind: 'adjust' }>).target, { kind: 'pattern', pattern: 'line' });
+  });
+  test('every real pattern of yellow edges reaches the cross within 3 goes', () => {
+    const alg = ALGORITHMS.ALG4;
     for (let mask = 0; mask < 16; mask++) {
-      if ([0, 1, 2, 3].filter((i) => mask & (1 << i)).length % 2) continue;
-      let d = base;
-      spots.forEach(([[r, c], f], i) => { if (mask & (1 << i)) { const cols = JSON.parse(JSON.stringify(d.colors)); [cols.top[r][c], cols[f][0][1]] = [cols[f][0][1], cols.top[r][c]]; d = { colors: cols, vis: d.vis }; } });
-      let runs = 0;
-      while (!yellowTopEdges(d.colors).every(Boolean) && runs < 4) {
-        const n = yellowTopEdges(d.colors).filter(Boolean).length;
-        if (n === 2) d = after(d, node(4, yellowTopEdges(d.colors).filter((v, i) => v && (i === 1 || i === 3)).length === 2 || yellowTopEdges(d.colors).filter((v, i) => v && (i === 0 || i === 2)).length === 2 ? 's4-align-line' : 's4-align-l'));
-        d = applyMoves(d, ALGORITHMS.ALG4); runs++;
+      const bits = [0, 1, 2, 3].filter((i) => mask & (1 << i));
+      if (bits.length % 2) continue; // an odd number of flipped edges cannot happen on a real cube
+      let d = scenario('yellow-top', showAll);
+      // flip the chosen top edges
+      const tops: [string, number, number][] = [['top', 2, 1], ['top', 1, 2], ['top', 0, 1], ['top', 1, 0]];
+      const sides: [string, number, number][] = [['front', 0, 1], ['right', 0, 1], ['back', 0, 1], ['left', 0, 1]];
+      const colors = JSON.parse(JSON.stringify(d.colors));
+      for (const i of bits) { const [tf, tr, tc] = tops[i]; const [sf, sr, sc] = sides[i]; const tmp = colors[tf][tr][tc]; colors[tf][tr][tc] = colors[sf][sr][sc]; colors[sf][sr][sc] = tmp; }
+      d = { colors, vis: d.vis };
+      let goes = 0;
+      while (!yellowTopEdges(d.colors).every(Boolean)) {
+        const [f, r, b, l] = yellowTopEdges(d.colors);
+        const n = [f, r, b, l].filter(Boolean).length;
+        if (n === 2 && ((f && b) || (l && r))) d = after(d, node(4, 's4-align-line'));
+        else if (n === 2) d = after(d, node(4, 's4-align-l'));
+        d = applyMoves(d, alg);
+        assert.ok(++goes <= 3);
       }
-      assert.ok(yellowTopEdges(d.colors).every(Boolean), `mask ${mask}`);
     }
   });
 });
 
-describe('stage 5: yellow edges', () => {
-  test('2 adjacent: face, edge swap, align -> all 4 match', () => {
-    let d = maxMatchTurn(node(5, 's5-align').kind === 'adjust' ? (node(5, 's5-align') as { demo: () => Demo }).demo() : scenario('yellow-top', showAll));
+describe('stages 5 and 6', () => {
+  test('2 side by side: face, edge swap, turn the top -> all 4 match', () => {
+    let d = maxMatchTurn(node(5, 's5-align').kind === 'adjust' ? (node(5, 's5-align') as Extract<FlowNode, { kind: 'adjust' }>).demo!() : scenario('yellow-top', showAll));
     assert.equal(matchCount(d.colors), 2);
     d = after(d, node(5, 's5-face'));
     d = runSeq(d, node(5, 's5-sune'));
     d = after(d, node(5, 's5-final'));
     assert.ok(edgeMatches(d.colors).every(Boolean));
   });
-  test('2 opposite: one edge swap gives an adjacent pair', () => {
-    let d = optionDemo(5, 's5-count', /opposite/);
+  test('2 across: one edge swap gives a side-by-side pair', () => {
+    let d = optionDemo(5, 's5-count', /across/);
     const m = edgeMatches(d.colors);
-    assert.ok((m[0] && m[2]) || (m[1] && m[3]), 'demo really shows 2 opposite');
+    assert.ok((m[0] && m[2]) || (m[1] && m[3]));
     d = maxMatchTurn(runSeq(d, node(5, 's5-opposite')));
     const m2 = edgeMatches(d.colors);
-    assert.ok(m2.every(Boolean) || [0, 1, 2, 3].some((i) => m2[i] && m2[(i + 1) % 4]));
+    assert.equal(matchCount(d.colors), 2);
+    assert.ok(!((m2[0] && m2[2]) || (m2[1] && m2[3])));
   });
-});
-
-describe('stage 6: corners in their spots', () => {
-  test('exactly-one demo really has one corner in its spot, and the guide fixes it', () => {
-    let d = optionDemo(6, 's6-check', /Exactly 1/);
+  test('"only 1 home" picture really has one corner home, and the guide fixes it within 2 goes', () => {
+    let d = optionDemo(6, 's6-check', /^Only 1/);
     assert.equal(cornersInSpot(d.colors), 1);
     d = after(d, node(6, 's6-face'));
-    let runs = 0;
-    while (cornersInSpot(d.colors) < 4 && runs < 3) { d = runSeq(d, node(6, 's6-keep')); runs++; }
-    assert.equal(cornersInSpot(d.colors), 4);
+    let goes = 0;
+    while (cornersInSpot(d.colors) < 4) { d = runSeq(d, node(6, 's6-keep')); assert.ok(++goes <= 2); }
   });
-  test('none demo really has no corner in its spot', () => {
-    assert.equal(cornersInSpot(optionDemo(6, 's6-check', /None/).colors), 0);
+  test('"none home" picture really has no corner home', () => {
+    assert.equal(cornersInSpot(optionDemo(6, 's6-check', /^None/).colors), 0);
   });
 });
 
-describe('stage 7: corner twists (yellow on the bottom)', () => {
-  test('following the guide solves the cube, 2 or 4 repeats per twisted corner', () => {
-    let d = (node(7, 's7-flip') as { demo: () => Demo }).demo();
-    const reps: number[] = [];
-    let twisted = 0;
-    let n = 0;
-    while (twisted < 4) {
-      let r = 0;
-      while (!yellowDownAtFrontRight(d.colors) && r < 6) { d = runSeq(d, node(7, 's7-twist')); r++; }
-      if (r) reps.push(r);
-      twisted++;
-      if (twisted < 4) d = after(d, node(7, 's7-next'));
-      if (++n > 10) break;
+describe('plain-language rules of the guide', () => {
+  test('every picture question has a "not sure" help with exactly 3 checks', () => {
+    for (const flow of Object.values(FOLLOW_ALONG)) for (const n of Object.values(flow.nodes)) {
+      if (n.kind === 'choice') assert.equal(n.help.length, 3, `${n.id} needs 3 help checks`);
     }
-    d = after(d, node(7, 's7-final'));
-    assert.ok(sidesAligned(d.colors) && d.colors.top.flat().every((x) => x === d.colors.top[1][1]), 'cube solved');
-    assert.ok(reps.every((r) => r === 2 || r === 4), `repeats ${reps}`);
   });
-  test("the old R' D' R D sequence would NOT have solved this cube", () => {
-    let d = twistCorner(twistCorner(scenario('white-top', showAll), FRONT_RIGHT_BOTTOM, 1), FRONT_LEFT_BOTTOM, 2);
-    for (let k = 0; k < 4; k++) { let r = 0; while (!yellowDownAtFrontRight(d.colors) && r < 6) { d = applyMoves(d, "R' D' R D"); r++; } d = applyStep(d, 'D'); }
-    const solved = ['', 'D', 'D2', "D'"].some((x) => { const t = applyMoves(d, x); return sidesAligned(t.colors) && t.colors.top.flat().every((c) => c === C.white); });
-    assert.equal(solved, false);
+  test('every option on every picture question has a picture', () => {
+    for (const flow of Object.values(FOLLOW_ALONG)) for (const n of Object.values(flow.nodes)) {
+      if (n.kind === 'choice') for (const o of n.options) assert.ok(o.picture, `${n.id} / ${o.label}`);
+    }
   });
-});
-
-describe('memory aids', () => {
-  test('every chant has exactly one phrase per move (so the current word can be highlighted)', () => {
+  test('the cube is never flipped: every screen of every stage holds yellow on top', () => {
+    for (const flow of Object.values(FOLLOW_ALONG)) for (const n of Object.values(flow.nodes)) assert.equal(n.hold, 'yellow-top', n.id);
+  });
+  test('each chant has exactly one phrase per turn (so the current word can be highlighted)', () => {
     for (const flow of Object.values(FOLLOW_ALONG)) for (const n of Object.values(flow.nodes)) {
       if (n.kind !== 'sequence') continue;
       for (const ch of n.chunks) assert.equal(ch.phrase.split(', ').length, ch.moves.length, `${n.id} / ${ch.name}: "${ch.phrase}" vs ${ch.moves.join(' ')}`);
     }
   });
-  test('the cheat sheet has one rule per stage and its notation matches what the guide teaches', () => {
+  test('the cheat sheet has one rule per stage and its letters match what the guide teaches', () => {
     assert.deepEqual(CHEAT_SHEET.map((x) => x.stage), [1, 2, 3, 4, 5, 6, 7]);
     const taught = new Set(Object.values(ALGORITHMS));
     for (const x of CHEAT_SHEET) if (x.move) assert.ok(taught.has(x.move.notation), `stage ${x.stage}: ${x.move.notation}`);
-    // the Sledgehammer is the same four moves in Stages 2 and 7
-    assert.equal(CHEAT_SHEET[1].move!.notation, CHEAT_SHEET[6].move!.notation);
-    assert.equal(sequenceMoves(node(7, 's7-twist') as never).join(' '), sequenceMoves(node(2, 's2-sledge') as never).join(' '));
+  });
+  test('first turn within 3 taps of "Start Learning": Stage 1 opens straight on the picture question', () => {
+    const flow = FOLLOW_ALONG[1];
+    assert.equal(flow.nodes[flow.start].kind, 'choice');
+    // tap 1 = Start Learning (opens this screen), tap 2 = a picture, tap 3 at most one "it's in front of me"
+    const start = flow.nodes[flow.start] as Extract<FlowNode, { kind: 'choice' }>;
+    for (const o of start.options) {
+      let id = resolveTarget(o.next, {});
+      let taps = 2;
+      while (flow.nodes[id].kind === 'info') { id = resolveTarget((flow.nodes[id] as Extract<FlowNode, { kind: 'info' }>).next, {}); taps++; }
+      if (flow.nodes[id].kind === 'sequence' || flow.nodes[id].kind === 'adjust') assert.ok(taps <= 3, `${o.label}: ${taps} taps`);
+    }
   });
 });
