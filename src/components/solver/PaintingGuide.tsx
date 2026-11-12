@@ -14,7 +14,7 @@ const ExampleNet = () => {
       <div className="grid grid-cols-3 gap-px rounded-sm bg-foreground/80 p-px">
         {solved[face].flat().map((color, i) => <span key={i} className="h-3.5 w-3.5 rounded-[2px]" style={{ backgroundColor: color }} />)}
       </div>
-      <span className="text-[10px] font-medium leading-none text-muted-foreground">{FACE_LABELS[face].name}</span>
+      <span className="text-sm font-medium leading-none text-muted-foreground">{FACE_LABELS[face].name}</span>
     </div>
   );
   return (
@@ -95,23 +95,23 @@ export const PaintingGuide = ({ onDone }: { onDone: () => void }) => {
   const last = i === STEPS.length - 1;
   return (
     <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3" data-testid="painting-guide">
-      <p className="text-xs font-semibold uppercase tracking-wide text-primary">How to copy your cube · {i + 1} of {STEPS.length}</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-primary">How to copy your cube · {i + 1} of {STEPS.length}</p>
       <h4 className="font-display text-lg font-bold text-foreground">{step.title}</h4>
-      <div className="text-sm leading-relaxed text-foreground">{step.body}</div>
+      <div className="text-base leading-relaxed text-foreground">{step.body}</div>
       <div className="flex gap-2">
         {i > 0 ? (
-          <button type="button" onClick={() => setI(i - 1)} className="flex min-h-12 items-center gap-1 rounded-xl border border-border px-4 font-medium">
+          <button type="button" onClick={() => setI(i - 1)} className="flex min-h-14 items-center gap-1 rounded-xl border border-border px-4 font-medium">
             <ArrowLeft className="h-4 w-4" /> Back
           </button>
         ) : (
-          <button type="button" onClick={onDone} className="flex min-h-12 items-center rounded-xl px-4 text-sm font-medium text-muted-foreground hover:bg-muted">
+          <button type="button" onClick={onDone} className="flex min-h-14 items-center rounded-xl px-4 text-base font-medium text-muted-foreground hover:bg-muted">
             Skip the guide
           </button>
         )}
         <button
           type="button"
           onClick={() => (last ? onDone() : setI(i + 1))}
-          className="flex min-h-12 flex-1 items-center justify-center gap-1 rounded-xl bg-primary px-4 font-semibold text-primary-foreground hover:bg-primary/90"
+          className="flex min-h-14 flex-1 items-center justify-center gap-1 rounded-xl bg-primary px-4 text-lg font-semibold text-primary-foreground hover:bg-primary/90"
         >
           {last ? 'Start painting' : 'Next'} <ArrowRight className="h-4 w-4" />
         </button>

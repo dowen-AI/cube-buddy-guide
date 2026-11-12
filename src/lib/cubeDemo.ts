@@ -161,3 +161,16 @@ export const cornersInSpot = (s: CubeState) => TOP_CORNERS.filter((k) => cornerI
 // Stage 7: yellow on the bottom; front-right-bottom corner orientation.
 export const yellowDownAtFrontRight = (s: CubeState) => at(s, FRONT_RIGHT_BOTTOM[0]) === C.yellow;
 export const sidesAligned = (s: CubeState) => (['front', 'right', 'back', 'left'] as Face[]).every((f) => s[f].flat().every((x) => x === center(s, f)));
+
+// ---- yellow stays on top for the whole solve (no flips) ----
+export const FRONT_RIGHT_TOP: StickerRef[] = [['top', 2, 2], ['front', 0, 2], ['right', 0, 0]];
+export const FRONT_LEFT_TOP: StickerRef[] = [['top', 2, 0], ['left', 0, 2], ['front', 0, 0]];
+
+// Stage 3: a top edge without yellow whose side color matches the center below it.
+const topEdgeReady = (s: CubeState, e: (typeof TOP_EDGES)[number]) =>
+  at(s, e.top) !== C.yellow && at(s, e.side) !== C.yellow && at(s, e.side) === center(s, e.face);
+export const topEdgeAligned = (s: CubeState) => TOP_EDGES.some((e) => topEdgeReady(s, e));
+export const topEdgeAlignedAtFront = (s: CubeState) => topEdgeReady(s, TOP_EDGES[0]);
+
+// Stage 7: the top front-right corner has its yellow facing up.
+export const yellowUpAtFrontRight = (s: CubeState) => at(s, FRONT_RIGHT_TOP[0]) === C.yellow;

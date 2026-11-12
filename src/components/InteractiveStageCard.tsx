@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Check, HelpCircle, Play, X } from 'lucide-react';
+import { Check, Play, Settings2, X } from 'lucide-react';
 import { FollowAlong } from './followalong/FollowAlong';
-import { NotationLegend } from './NotationLegend';
+import { GuideOptions } from './GuideOptions';
 import { FOLLOW_ALONG } from '@/data/followAlong';
 import type { InteractiveStage } from '@/data/interactiveStagesData';
 
@@ -16,7 +16,7 @@ interface InteractiveStageCardProps {
 }
 
 export const InteractiveStageCard = ({ stage, isComplete, onToggleComplete, isOpen, onOpen, onClose }: InteractiveStageCardProps) => {
-  const [showLegend, setShowLegend] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
 
   if (isOpen) {
     return (
@@ -24,26 +24,25 @@ export const InteractiveStageCard = ({ stage, isComplete, onToggleComplete, isOp
         id={`stage-${stage.id}`}
         aria-label={`Stage ${stage.id}: ${stage.title}`}
         // Exactly one screen tall under the 4rem sticky header, so a step never needs scrolling.
-        className="relative flex h-[calc(100dvh-4rem)] scroll-mt-16 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card md:h-[min(calc(100dvh-5rem),760px)]"
+        className="relative flex h-[calc(100dvh-4rem)] scroll-mt-16 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card md:h-[min(calc(100dvh-5rem),780px)]"
       >
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border pl-3 pr-1">
-          <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white', isComplete ? 'bg-cube-green' : 'bg-gradient-to-br from-primary to-accent')}>
+        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border pl-3 pr-1">
+          <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base font-bold text-white', isComplete ? 'bg-cube-green' : 'bg-gradient-to-br from-primary to-accent')}>
             {isComplete ? <Check className="h-4 w-4" /> : stage.id}
           </span>
-          <h2 className="min-w-0 flex-1 truncate font-display text-base font-bold text-foreground">{stage.title}</h2>
-          <button type="button" onClick={() => setShowLegend((v) => !v)} aria-expanded={showLegend} aria-label="What do the move letters mean?" className="flex h-12 w-12 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
-            <HelpCircle className="h-5 w-5" />
+          <h2 className="min-w-0 flex-1 truncate font-display text-lg font-bold text-foreground">{stage.title}</h2>
+          <button type="button" onClick={() => setShowOptions((v) => !v)} aria-expanded={showOptions} aria-label="Options: big text, read aloud, hands-free, letters" className="flex h-14 w-12 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" data-testid="options-button">
+            <Settings2 className="h-6 w-6" />
           </button>
-          <button type="button" onClick={onClose} aria-label={`Close the ${stage.title} guide`} className="flex h-12 items-center gap-1 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
-            <X className="h-4 w-4" /><span className="sm:hidden">Close</span><span className="hidden sm:inline">Close guide</span>
+          <button type="button" onClick={onClose} aria-label={`Close the ${stage.title} guide`} className="flex h-14 items-center gap-1 rounded-lg px-3 text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+            <X className="h-5 w-5" />Close
           </button>
         </div>
         <div className="relative min-h-0 flex-1">
           <FollowAlong flow={FOLLOW_ALONG[stage.id]} isComplete={isComplete} onComplete={onToggleComplete} onClose={onClose} />
-          {showLegend ? (
-            <div className="absolute inset-0 z-20 overflow-y-auto bg-background/95 p-3">
-              <NotationLegend defaultOpen />
-              <button type="button" onClick={() => setShowLegend(false)} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-xl border border-border font-medium">Back to the guide</button>
+          {showOptions ? (
+            <div className="absolute inset-0 z-20 overflow-y-auto bg-background p-3">
+              <GuideOptions onClose={() => setShowOptions(false)} />
             </div>
           ) : null}
         </div>
@@ -54,21 +53,21 @@ export const InteractiveStageCard = ({ stage, isComplete, onToggleComplete, isOp
   return (
     <section
       id={`stage-${stage.id}`}
-      className={cn('scroll-mt-32 overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300', isComplete && 'ring-2 ring-cube-green/30')}
+      className={cn('scroll-mt-36 overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all duration-300', isComplete && 'ring-2 ring-cube-green/30')}
     >
-      <div className="border-b border-border p-6 md:p-8">
+      <div className="border-b border-border p-5 md:p-8">
         <div className="flex items-center gap-4">
           <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white', isComplete ? 'bg-cube-green' : 'bg-gradient-to-br from-primary to-accent')}>
             {isComplete ? <Check className="h-6 w-6" /> : stage.id}
           </span>
           <div>
             <h2 className="font-display text-2xl font-bold text-foreground">{stage.title}</h2>
-            <p className="mt-1 text-muted-foreground">{stage.description}</p>
+            <p className="mt-1 text-base text-muted-foreground">{stage.description}</p>
           </div>
         </div>
       </div>
-      <div className="space-y-6 p-6 text-center md:p-8">
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-6">
+      <div className="space-y-5 p-5 text-center md:p-8">
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-primary">🎯 Goal</h3>
           <p className="text-lg text-foreground">{stage.goal}</p>
         </div>
@@ -76,7 +75,7 @@ export const InteractiveStageCard = ({ stage, isComplete, onToggleComplete, isOp
           <Play className="h-5 w-5" />
           {isComplete ? 'Follow along again' : 'Start follow-along'}
         </button>
-        <p className="text-sm text-muted-foreground">Hold your real cube and do each turn with the guide, one move at a time.</p>
+        <p className="text-base text-muted-foreground">Hold your real cube and do each turn with the guide, one at a time.</p>
       </div>
     </section>
   );

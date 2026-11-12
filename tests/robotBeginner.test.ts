@@ -7,9 +7,9 @@ import { strict as assert } from 'node:assert';
 import { CUBE_COLORS as C, executeMove, getSolvedCube, type CubeState, type MoveName } from '../src/hooks/useCubeState';
 import { FOLLOW_ALONG, applyEffect, resolveTarget, sequenceMoves, type Counters } from '../src/data/followAlong';
 import {
-  applyStep, bottomEdgeAligned, bottomEdgeAlignedAtFront, cornersInSpot, edgeMatches, frontRightCornerInSpot,
+  applyStep, cornersInSpot, edgeMatches, frontRightCornerInSpot,
   lAtBackLeft, lineLeftRight, matchCount, maxMatchTurn, pairAtBackRight, petalMatched, petalMatchedAtFront,
-  sidesAligned, whiteCornerOverFrontRight, whiteCornerOverSlot, yellowDownAtFrontRight, yellowTopEdges,
+  sidesAligned, topEdgeAligned, topEdgeAlignedAtFront, whiteCornerOverFrontRight, whiteCornerOverSlot, yellowUpAtFrontRight, yellowTopEdges,
   BOTTOM_EDGES, TOP_CORNERS, TOP_EDGES, type DemoStep, type StickerRef,
 } from '../src/lib/cubeDemo';
 import type { Face } from '../src/lib/cubeGeometry';
@@ -25,11 +25,6 @@ const until = (s: CubeState, m: DemoStep, done: (s: CubeState) => boolean, what:
   for (let i = 0; i < 4; i++) { if (done(cur)) return cur; cur = step(cur, m); }
   assert.fail(`could not "${what}" by turning ${m}`);
 };
-const rot180 = (g: string[][]) => [...g].reverse().map((row) => [...row].reverse());
-// Turn the cube upside down, keeping the same face toward you.
-const flip = (s: CubeState): CubeState => ({
-  top: rot180(s.bottom), bottom: rot180(s.top), left: rot180(s.right), right: rot180(s.left), front: rot180(s.front), back: rot180(s.back),
-});
 const MIDDLE_EDGES: { a: StickerRef; b: StickerRef; faces: [Face, Face] }[] = [
   { a: ['front', 1, 2], b: ['right', 1, 0], faces: ['front', 'right'] },
   { a: ['right', 1, 2], b: ['back', 1, 0], faces: ['right', 'back'] },
@@ -73,48 +68,48 @@ type Answer = (s: CubeState, c: Counters, pick: <T>(xs: T[]) => T) => [CubeState
 // Whether the person answers "Yes" on a checkpoint.
 type Check = (s: CubeState) => boolean;
 
+const TOP_NO_YELLOW = (s: CubeState) => TOP_EDGES.some((e) => !hasColor(s, [e.top, e.side], Y));
+const topCornerHasWhite = (s: CubeState) => TOP_CORNERS.some((k) => hasColor(s, [k.top, k.a, k.b], W));
+
 const ACT: Record<string, Act> = {
   // Stage 1
-  's1-side-face': (s) => until(s, 'y', (x) => at(x, ['front', 0, 1]) === W, 'bring the white-facing-side top edge to the front'),
+  's1-side-face': (s) => until(s, 'y', (x) => at(x, ['front', 0, 1]) === W, 'bring the white-on-the-side top edge to the front'),
   's1-bottom-face': (s) => until(s, 'y', (x) => at(x, ['bottom', 0, 1]) === W && at(x, ['front', 2, 1]) !== center(x, 'front'), 'bring the misplaced bottom edge to the front'),
   's1-flipped-face': (s) => until(s, 'y', (x) => at(x, ['front', 2, 1]) === W, 'bring the flipped bottom edge to the front'),
   's1-align': (s) => until(s, 'U', petalMatched, 'match the white edge to its center'),
   's1-face': (s) => until(s, 'y', petalMatchedAtFront, 'face the matched white edge'),
   // Stage 2
   's2-wrong-face': (s) => until(s, 'y', (x) => hasColor(x, [BOTTOM_CORNERS[0].down, BOTTOM_CORNERS[0].a, BOTTOM_CORNERS[0].b], W) && !bottomCornerSolved(x, BOTTOM_CORNERS[0]), 'bring the wrong bottom corner to the front-right'),
-  's2-align': (s) => until(s, 'U', whiteCornerOverSlot, 'put the white corner above its slot'),
+  's2-align': (s) => until(s, 'U', whiteCornerOverSlot, 'put the white corner above its home'),
   's2-face': (s) => until(s, 'y', whiteCornerOverFrontRight, 'bring that corner to the front-right'),
-  // Stage 3
-  's3-flip': flip,
+  // Stage 3 (yellow stays on top)
   's3-stuck-face': (s) => until(s, 'y', (x) => !middleSolved(x, MIDDLE_EDGES[0]), 'bring the stuck edge to the front-right'),
-  's3-align': (s) => until(s, 'D', bottomEdgeAligned, 'match the bottom edge to the center above'),
-  's3-face': (s) => until(s, 'y', bottomEdgeAlignedAtFront, 'face the matched bottom edge'),
+  's3-align': (s) => until(s, 'U', topEdgeAligned, 'match the top edge to the center below'),
+  's3-face': (s) => until(s, 'y', topEdgeAlignedAtFront, 'face the matched top edge'),
   // Stage 4
-  's4-flip': flip,
-  's4-align-l': (s) => until(s, 'U', lAtBackLeft, 'point the L to the back-left'),
+  's4-align-l': (s) => until(s, 'U', lAtBackLeft, 'put the L at the back-left'),
   's4-align-line': (s) => until(s, 'U', lineLeftRight, 'make the line go left to right'),
   // Stage 5
   's5-align': (s) => maxMatchTurn({ colors: s, vis: s }).colors,
   's5-face': (s) => until(s, 'y', pairAtBackRight, 'put the matching pair at the back and right'),
   's5-final': (s) => until(s, 'U', (x) => edgeMatches(x).every(Boolean), 'line up all 4 top edges'),
   // Stage 6
-  's6-face': (s) => until(s, 'y', frontRightCornerInSpot, 'bring the correct corner to the front-right'),
-  // Stage 7
-  's7-flip': flip,
-  's7-next': (s) => step(s, 'D'),
-  's7-final': (s) => until(s, 'D', sidesAligned, 'line up the last layer'),
+  's6-face': (s) => until(s, 'y', frontRightCornerInSpot, 'bring the home corner to the front-right'),
+  // Stage 7 (yellow stays on top, the whole cube is never turned)
+  's7-next': (s) => step(s, 'U'),
+  's7-final': (s) => until(s, 'U', sidesAligned, 'line up the top layer'),
 };
 
 const ANSWER: Record<string, Answer> = {
   's1-where': (s, c, pick) => {
     const options: RegExp[] = [];
-    if (TOP_EDGES.some((e) => at(s, e.top) === W)) options.push(/Top layer — white facing UP/);
-    if (TOP_EDGES.some((e) => at(s, e.side) === W)) options.push(/Top layer — white facing the side/);
-    if (MIDDLE_EDGES.some((e) => hasColor(s, [e.a, e.b], W))) options.push(/Middle layer/);
-    if (BOTTOM_EDGES.some((e) => at(s, e.down) === W && at(s, e.side) !== center(s, e.face))) options.push(/Bottom layer — white DOWN/);
-    if (BOTTOM_EDGES.some((e) => at(s, e.side) === W)) options.push(/Bottom layer — white facing the side/);
-    if (BOTTOM_EDGES.filter((e) => bottomEdgePlaced(s, e)).length > (c.petals ?? 0)) options.push(/already correct/);
-    assert.ok(options.length, 'stage 1: a white edge is left but no option describes it');
+    if (TOP_EDGES.some((e) => at(s, e.top) === W)) options.push(/^Top: white facing UP/);
+    if (TOP_EDGES.some((e) => at(s, e.side) === W)) options.push(/^Top: white sideways/);
+    if (MIDDLE_EDGES.some((e) => hasColor(s, [e.a, e.b], W))) options.push(/^Middle row/);
+    if (BOTTOM_EDGES.some((e) => at(s, e.down) === W && at(s, e.side) !== center(s, e.face))) options.push(/^Bottom: white DOWN/);
+    if (BOTTOM_EDGES.some((e) => at(s, e.side) === W)) options.push(/^Bottom: white sideways/);
+    if (BOTTOM_EDGES.filter((e) => bottomEdgePlaced(s, e)).length > (c.petals ?? 0)) options.push(/^Bottom: done/);
+    assert.ok(options.length, 'stage 1: a white edge is left but no picture describes it');
     return [s, pick(options)];
   },
   's1-middle': (s) => {
@@ -123,76 +118,76 @@ const ANSWER: Record<string, Answer> = {
   },
   's2-where': (s, c, pick) => {
     const options: RegExp[] = [];
-    if (TOP_CORNERS.some((k) => hasColor(s, [k.top, k.a, k.b], W))) options.push(/^Top layer/);
-    if (BOTTOM_CORNERS.some((k) => hasColor(s, [k.down, k.a, k.b], W) && !bottomCornerSolved(s, k))) options.push(/wrong slot/);
-    if (BOTTOM_CORNERS.filter((k) => bottomCornerSolved(s, k)).length > (c.corners ?? 0)) options.push(/Already solved/);
-    assert.ok(options.length, 'stage 2: a white corner is left but no option describes it');
+    if (topCornerHasWhite(s)) options.push(/^In the top row/);
+    if (BOTTOM_CORNERS.some((k) => hasColor(s, [k.down, k.a, k.b], W) && !bottomCornerSolved(s, k))) options.push(/^In the bottom row, but wrong/);
+    if (BOTTOM_CORNERS.filter((k) => bottomCornerSolved(s, k)).length > (c.corners ?? 0)) options.push(/^Done, count it/);
+    assert.ok(options.length, 'stage 2: a white corner is left but no picture describes it');
     return [s, pick(options)];
   },
   's3-where': (s, c, pick) => {
     const options: RegExp[] = [];
-    const found = BOTTOM_EDGES.some((e) => !hasColor(s, [e.down, e.side], Y));
-    if (found) options.push(/Found one/);
+    const found = TOP_NO_YELLOW(s);
+    if (found) options.push(/^Found one/);
     if (!found && MIDDLE_EDGES.some((e) => !middleSolved(s, e))) options.push(/^None/);
-    if (MIDDLE_EDGES.filter((e) => middleSolved(s, e)).length > (c.edges ?? 0)) options.push(/already correct/);
-    assert.ok(options.length, 'stage 3: an edge is left but no option describes it');
+    if (MIDDLE_EDGES.filter((e) => middleSolved(s, e)).length > (c.edges ?? 0)) options.push(/A middle edge is done/);
+    assert.ok(options.length, 'stage 3: an edge is left but no picture describes it');
     return [s, pick(options)];
   },
   's3-dir': (s) => {
-    const down = at(s, ['bottom', 0, 1]);
-    assert.ok(down === center(s, 'right') || down === center(s, 'left'), 'stage 3: the edge matches neither side center');
-    return [s, down === center(s, 'right') ? /RIGHT center/ : /LEFT center/];
+    const up = at(s, ['top', 2, 1]);
+    assert.ok(up === center(s, 'right') || up === center(s, 'left'), 'stage 3: the edge matches neither side center');
+    return [s, up === center(s, 'right') ? /RIGHT side/ : /LEFT side/];
   },
   's4-pattern': (s) => {
     const [f, r, b, l] = yellowTopEdges(s);
     const n = [f, r, b, l].filter(Boolean).length;
     assert.ok(n === 0 || n === 2 || n === 4, `stage 4: ${n} yellow edges on top matches no picture`);
-    return [s, n === 0 ? /^Dot/ : n === 4 ? /^Cross/ : (f && b) || (l && r) ? /^Line/ : /^L-shape/];
+    return [s, n === 0 ? /^Dot/ : n === 4 ? /^Cross/ : (f && b) || (l && r) ? /^Line/ : /^L shape/];
   },
   's5-count': (s) => {
     const m = edgeMatches(s);
     const n = matchCount(s);
-    assert.ok(n === 4 || n === 2, `stage 5: best turn gives ${n} matching edges, which no option covers`);
-    return [s, n === 4 ? /^All 4/ : (m[0] && m[2]) || (m[1] && m[3]) ? /opposite/ : /next to each other/];
+    assert.ok(n === 4 || n === 2, `stage 5: best turn gives ${n} matching edges, which no picture covers`);
+    return [s, n === 4 ? /^All 4/ : (m[0] && m[2]) || (m[1] && m[3]) ? /across/ : /side by side/];
   },
   's6-check': (s) => {
     const n = cornersInSpot(s);
-    assert.ok(n === 4 || n === 1 || n === 0, `stage 6: ${n} corners in their spots, which no option covers`);
-    return [s, n === 4 ? /^All 4/ : n === 1 ? /^Exactly 1/ : /^None/];
+    assert.ok(n === 4 || n === 1 || n === 0, `stage 6: ${n} corners home, which no picture covers`);
+    return [s, n === 4 ? /^All 4/ : n === 1 ? /^Only 1/ : /^None/];
   },
   's7-start': (s) => {
-    if (BOTTOM_CORNERS.every((k) => at(s, k.down) === Y)) return [s, /already has yellow facing down/];
-    return [until(s, 'D', (x) => !yellowDownAtFrontRight(x), 'bring a twisted corner to the front-right'), /^Done/];
+    if (TOP_CORNERS.every((k) => at(s, k.top) === Y)) return [s, /already have yellow on top/];
+    return [until(s, 'U', (x) => !yellowUpAtFrontRight(x), 'bring a twisted corner to the front-right'), /^Done/];
   },
-  's7-next-check': (s) => [s, yellowDownAtFrontRight(s) ? /already solved/ : /fix it/],
+  's7-next-check': (s) => [s, yellowUpAtFrontRight(s) ? /already done/ : /fix it/],
 };
 
-// Checkpoints. For "should look like THIS" screens the robot asserts the claim;
+// Checkpoints. For "your cube looks like this" screens the robot asserts the claim;
 // for "is it done yet?" screens it answers honestly from what it sees.
 const topHasWhiteUp: Check = (s) => TOP_EDGES.some((e) => at(s, e.top) === W);
 const CHECK: Record<string, Check> = {
   's1-side-seq': topHasWhiteUp, 's1-middle-facing': topHasWhiteUp, 's1-middle-right': topHasWhiteUp, 's1-bottom-seq': topHasWhiteUp, 's1-flipped-seq': topHasWhiteUp,
   's1-drop': (s) => bottomEdgePlaced(s, BOTTOM_EDGES[0]),
-  's2-pop': (s) => TOP_CORNERS.some((k) => hasColor(s, [k.top, k.a, k.b], W)),
+  's2-pop': topCornerHasWhite,
   's2-sledge': (s) => bottomCornerSolved(s, BOTTOM_CORNERS[0]),
-  's3-pop': (s) => BOTTOM_EDGES.some((e) => !hasColor(s, [e.down, e.side], Y)),
+  's3-pop': TOP_NO_YELLOW,
   's3-right': (s) => middleSolved(s, MIDDLE_EDGES[0]),
   's3-left': (s) => middleSolved(s, MIDDLE_EDGES[3]),
   's4-dot': (s) => { const [f, r, b, l] = yellowTopEdges(s); return [f, r, b, l].filter(Boolean).length === 2 && !((f && b) || (l && r)); },
-  's4-l': (s) => { const [f, r, b, l] = yellowTopEdges(s); return [f, r, b, l].filter(Boolean).length === 2 && ((f && b) || (l && r)); },
+  's4-l': (s) => { const [f, r, b, l] = yellowTopEdges(s); return l && r && !f && !b; },
   's4-line': (s) => yellowTopEdges(s).every(Boolean),
   's5-sune': (s) => [0, 1, 2, 3].some((i) => { let t = s; for (let k = 0; k < i; k++) t = step(t, 'U'); return edgeMatches(t).every(Boolean); }),
   's5-opposite': () => true,
   's6-keep': (s) => cornersInSpot(s) === 4,
   's6-any': () => true,
-  's7-twist': yellowDownAtFrontRight,
+  's7-twist': yellowUpAtFrontRight,
 };
 
-// What must be true when each stage's finish screen appears.
+// What must be true when each stage's finish screen appears. Yellow is on top throughout.
 const STAGE_GOAL: Record<number, Check> = {
   1: crossDone,
   2: firstLayerDone,
-  3: (s) => s.top.flat().every((x) => x === W) && SIDES.every((f) => s[f].slice(0, 2).flat().every((x) => x === center(s, f))),
+  3: (s) => firstLayerDone(s) && SIDES.every((f) => s[f].slice(1).flat().every((x) => x === center(s, f))),
   4: (s) => yellowTopEdges(s).every(Boolean),
   5: (s) => edgeMatches(s).every(Boolean),
   6: (s) => cornersInSpot(s) === 4,
@@ -259,14 +254,6 @@ const runStage = (stageId: number, start: CubeState, rand: () => number, stats: 
 };
 
 describe('robot beginner: random scrambles, following the guide literally', () => {
-  test('the flip helper really turns the cube upside down', () => {
-    const s = executeMove(executeMove(getSolvedCube(), 'R'), 'U');
-    assert.deepEqual(flip(flip(s)), s);
-    // a right turn on the flipped cube is a left turn on the original
-    assert.deepEqual(executeMove(flip(s), 'R'), flip(executeMove(s, 'L')));
-    assert.equal(flip(getSolvedCube()).top[1][1], W);
-  });
-
   const N = 500;
   test(`${N} scrambled cubes all end up solved`, () => {
     const stats: Stats = { taps: [], maxRepeat: {}, visited: new Set(), known: new Set(), shortcutTaps: 0 };

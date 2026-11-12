@@ -111,3 +111,12 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Printing the page prints the one-page cheat sheet and nothing else. */
+@media print {
+  @page { margin: 12mm; }
+  html, body { background: #fff !important; }
+  main > *:not(#cheat-sheet), header, nav { display: none !important; }
+  #cheat-sheet { display: block !important; color: #000; }
+  #cheat-sheet * { color: #000 !important; }
+}

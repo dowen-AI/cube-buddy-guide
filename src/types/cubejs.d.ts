@@ -4,6 +4,7 @@ declare module 'cubejs' {
     static fromString(facelets: string): Cube;
     static initSolver(): void;
     static random(): Cube;
+    static inverse(algorithm: string): string;
     move(algorithm: string): Cube;
     asString(): string;
     solve(maxDepth?: number): string;

@@ -1,12 +1,11 @@
-import { useEffect, useMemo } from 'react';
-import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { CUBE_COLORS, type CubeState, type MoveName } from '@/hooks/useCubeState';
-import { cubeletFaces, isInMoveLayer, stickerIndex, type Face } from '@/lib/cubeGeometry';
+import { ANY_COLOR, cubeletFaces, hiddenFaceView, isInMoveLayer, moveRotation, stickerIndex, type CubeView, type Face } from '@/lib/cubeGeometry';
 import { useInView } from '@/hooks/useInView';
 
-const GREY = '#a3a8b3';
 const ARROW = '#d946ef';
 const ARROW_EDGE = '#1a1a1a';
 
@@ -19,7 +18,8 @@ const STICKER: Record<Face, { pos: [number, number, number]; rot: [number, numbe
   back: { pos: [0, 0, -0.476], rot: [0, Math.PI, 0] },
 };
 
-const dim = (hex: string) => `#${new THREE.Color(hex).multiplyScalar(0.38).getHexString()}`;
+// Stickers outside the turning layer are toned down so the eye goes to what moves.
+const dim = (hex: string) => `#${new THREE.Color(hex).multiplyScalar(0.55).getHexString()}`;
 
 // Flat arrow pointing +X, centred on the origin in the XY plane.
 const straightArrow = (length: number, width: number, head: number) => {
@@ -95,47 +95,78 @@ const MoveArrow = ({ move }: { move: MoveName }) => {
   );
 };
 
-interface CubeSceneProps {
+interface SceneProps {
   colors: CubeState;
   vis?: CubeState;
   move?: MoveName | null;
+  animate: boolean;
+  loop: boolean;
+  speed: number;
   onFaceClick?: (face: Face) => void;
 }
 
-const CubeScene = ({ colors, vis, move, onFaceClick }: CubeSceneProps) => {
-  const cubelets = useMemo(() => {
-    const out: JSX.Element[] = [];
+const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+// The layer being turned: it rotates the way the real layer does, pauses so the
+// result can be seen, then (when looping) snaps back and shows it again.
+const TurningLayer = ({ move, animate, loop, speed, children }: { move: MoveName; animate: boolean; loop: boolean; speed: number; children: React.ReactNode }) => {
+  const ref = useRef<THREE.Group>(null);
+  const clock = useRef(0);
+  const { axis, quarters } = moveRotation(move);
+  const turn = (Math.abs(quarters) === 2 ? 1.3 : 0.9) / speed;
+  const hold = 0.7 / speed;
+  const rest = 0.45 / speed;
+  useEffect(() => { clock.current = 0; if (ref.current) ref.current.rotation.set(0, 0, 0); }, [move, animate]);
+  useFrame((_, delta) => {
+    const g = ref.current;
+    if (!g || !animate) return;
+    clock.current += Math.min(delta, 0.1);
+    const period = rest + turn + hold;
+    const t = loop ? clock.current % period : Math.min(clock.current, period - 0.001);
+    const progress = t < rest ? 0 : t < rest + turn ? ease((t - rest) / turn) : 1;
+    g.rotation[axis] = progress * quarters * (Math.PI / 2);
+  });
+  return <group ref={ref}>{children}</group>;
+};
+
+const CubeScene = ({ colors, vis, move, animate, loop, speed, onFaceClick }: SceneProps) => {
+  const { still, turning } = useMemo(() => {
+    const still: JSX.Element[] = [];
+    const turning: JSX.Element[] = [];
     for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
-      const inLayer = !move || isInMoveLayer(move, x, y, z);
-      out.push(
+      const inLayer = Boolean(move) && isInMoveLayer(move!, x, y, z);
+      const el = (
         <group key={`${x}${y}${z}`} position={[x, y, z]}>
           {cubeletFaces(x, y, z).map((face) => {
             const [r, c] = stickerIndex(face, x, y, z);
             const shown = !vis || vis[face][r][c] === '1';
-            const base = shown ? colors[face][r][c] : GREY;
-            const color = inLayer ? base : dim(base);
+            const base = shown ? colors[face][r][c] : ANY_COLOR;
+            const color = !move || inLayer ? base : dim(base);
             const click = onFaceClick
               ? (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onFaceClick(face); }
               : undefined;
             return (
+              // Unlit, so white looks white and never reads as grey.
               <mesh key={face} position={STICKER[face].pos} rotation={STICKER[face].rot} onClick={click}>
                 <planeGeometry args={[0.82, 0.82]} />
-                <meshStandardMaterial color={color} />
+                <meshBasicMaterial color={color} />
               </mesh>
             );
           })}
           <RoundedBox args={[0.95, 0.95, 0.95]} radius={0.08} smoothness={3}>
             <meshStandardMaterial color={CUBE_COLORS.black} />
           </RoundedBox>
-        </group>,
+        </group>
       );
+      (inLayer ? turning : still).push(el);
     }
-    return out;
+    return { still, turning };
   }, [colors, vis, move, onFaceClick]);
 
   return (
     <group>
-      {cubelets}
+      {still}
+      {move ? <TurningLayer move={move} animate={animate} loop={loop} speed={speed}>{turning}</TurningLayer> : null}
       {move && <MoveArrow move={move} />}
     </group>
   );
@@ -143,9 +174,15 @@ const CubeScene = ({ colors, vis, move, onFaceClick }: CubeSceneProps) => {
 
 // Keep the whole cube (and its arrow) in frame whatever the canvas shape:
 // back the camera off far enough for both the vertical and horizontal field of view.
-const VIEW_DIRECTION: Record<'top' | 'bottom', [number, number, number]> = { top: [4.2, 3.4, 4.2], bottom: [4.2, -3.4, 4.2] };
+const VIEW_DIRECTION: Record<CubeView, [number, number, number]> = {
+  top: [4.2, 3.4, 4.2],
+  bottom: [4.2, -3.4, 4.2],
+  left: [-4.2, 3.4, 4.2],
+  back: [4.2, 3.4, -4.2],
+};
+const VIEW_LABEL: Record<Exclude<CubeView, 'top'>, string> = { bottom: 'From below', left: 'From the left', back: 'From behind' };
 
-const FitCamera = ({ view }: { view: 'top' | 'bottom' }) => {
+const FitCamera = ({ view }: { view: CubeView }) => {
   const { camera, size, invalidate } = useThree();
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera;
@@ -162,6 +199,8 @@ const FitCamera = ({ view }: { view: 'top' | 'bottom' }) => {
   return null;
 };
 
+const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
 interface InteractiveCube3DProps {
   colors: CubeState;
   vis?: CubeState;
@@ -170,21 +209,41 @@ interface InteractiveCube3DProps {
   onFaceClick?: (face: Face) => void;
   className?: string;
   label?: string;
+  // the layer turns on screen (looping) unless the person's device asks for reduced motion
+  animate?: boolean;
+  loop?: boolean;
+  speed?: number;
 }
 
-export const InteractiveCube3D = ({ colors, vis, move, view = 'top', onFaceClick, className = 'w-full h-64 md:h-80', label }: InteractiveCube3DProps) => {
+const CubeCanvas = ({ view, running, controls, ...scene }: SceneProps & { view: CubeView; running: boolean; controls: boolean }) => (
+  // keyed by view so the camera resets when the viewpoint changes
+  <Canvas key={view} camera={{ position: VIEW_DIRECTION[view], fov: 38 }} frameloop={running ? 'always' : 'demand'}>
+    <ambientLight intensity={0.75} />
+    <directionalLight position={[10, view === 'bottom' ? -10 : 10, 5]} intensity={0.9} />
+    <directionalLight position={[-10, 0, -5]} intensity={0.3} />
+    <FitCamera view={view} />
+    <CubeScene {...scene} />
+    {controls ? <OrbitControls enableZoom={false} enablePan={false} /> : null}
+  </Canvas>
+);
+
+export const InteractiveCube3D = ({ colors, vis, move, view = 'top', onFaceClick, className = 'w-full h-64 md:h-80', label, animate = true, loop = true, speed = 1 }: InteractiveCube3DProps) => {
   const { ref, inView } = useInView<HTMLDivElement>();
+  const [reduced] = useState(prefersReducedMotion);
+  const moving = Boolean(move) && animate && !reduced;
+  const running = moving && inView;
+  // A turn of the bottom, left or back can't be seen from the front: add a second, small view of that face.
+  const inset = move ? hiddenFaceView(move) : null;
+  const scene: SceneProps = { colors, vis, move, animate: moving, loop, speed, onFaceClick };
   return (
-    <div ref={ref} className={className} role="img" aria-label={label ?? '3D cube'}>
-      {/* keyed by view so the camera resets when switching between top and bottom views */}
-      <Canvas key={view} camera={{ position: VIEW_DIRECTION[view], fov: 38 }} frameloop={inView ? 'demand' : 'never'}>
-        <ambientLight intensity={0.75} />
-        <directionalLight position={[10, view === 'bottom' ? -10 : 10, 5]} intensity={0.9} />
-        <directionalLight position={[-10, 0, -5]} intensity={0.3} />
-        <FitCamera view={view} />
-        <CubeScene colors={colors} vis={vis} move={move} onFaceClick={onFaceClick} />
-        <OrbitControls enableZoom={false} enablePan={false} />
-      </Canvas>
+    <div ref={ref} className={`relative ${className}`} role="img" aria-label={label ?? '3D cube'} data-animating={running || undefined}>
+      {inView ? <CubeCanvas view={view} running={running} controls {...scene} /> : null}
+      {inset && inset !== view && inView ? (
+        <div className="pointer-events-none absolute bottom-1 left-1 h-[112px] w-[112px] overflow-hidden rounded-xl border-2 border-fuchsia-500 bg-background shadow-md md:h-40 md:w-40" data-testid="inset-view" data-view={inset}>
+          <CubeCanvas view={inset} running={running} controls={false} {...scene} onFaceClick={undefined} />
+          <span className="absolute inset-x-0 top-0 bg-background/90 px-1 text-center text-sm font-semibold leading-tight text-foreground">{VIEW_LABEL[inset]}</span>
+        </div>
+      ) : null}
     </div>
   );
 };

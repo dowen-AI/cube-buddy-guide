@@ -22,7 +22,7 @@ export const NotationReference = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <section id="notation" className="py-16 px-4 bg-muted/30 scroll-mt-32">
+    <section id="notation" className="py-10 px-4 bg-muted/30 scroll-mt-32 print:hidden">
       <div className="max-w-4xl mx-auto">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -32,10 +32,10 @@ export const NotationReference = () => {
             <span className="text-2xl">📖</span>
             <div className="text-left">
               <h2 className="text-xl font-bold font-display text-foreground">
-                Algorithm Notation Reference
+                The letters cubers use (optional, for later)
               </h2>
-              <p className="text-sm text-muted-foreground">
-                What letters like R, U' and F2 mean — used by the move buttons and the solver
+              <p className="text-base text-muted-foreground">
+                You do not need these to solve. Cubers write each turn as a letter, like R or U'.
               </p>
             </div>
           </div>
