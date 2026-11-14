@@ -162,14 +162,47 @@ describe('stage 4: pictures, words and the simulated top face agree', () => {
     console.log(`  after go 3     ${draw(d)}`);
     assert.deepEqual(top(d), { f: true, r: true, b: true, l: true });
   });
-  test('each check shows a flat top-only picture (no side stickers), and it matches the simulation', () => {
-    const goals = { 's4-dot': 'l', 's4-l': 'line', 's4-line': 'cross' } as const;
-    for (const [id, want] of Object.entries(goals)) {
+  test('Stage 4 pictures are drawn from simulated cubes, top face only, with nothing but yellow showing', () => {
+    const flow = FOLLOW_ALONG[4];
+    assert.ok(flow.display, 'Stage 4 has a display filter');
+    for (const id of ['s4-dot', 's4-l', 's4-line']) {
       const n = node(4, id) as Extract<FlowNode, { kind: 'sequence' }>;
-      assert.deepEqual(n.checkpoint.goal, { kind: 'pattern', pattern: want });
+      assert.equal(n.checkpoint.flat, true, `${id}: the check draws the simulated cube flat`);
+      assert.equal(n.checkpoint.goal, undefined, `${id}: no hand-made goal picture`);
     }
-    assert.deepEqual((node(4, 's4-align-l') as Extract<FlowNode, { kind: 'adjust' }>).target, { kind: 'pattern', pattern: 'l' });
-    assert.deepEqual((node(4, 's4-align-line') as Extract<FlowNode, { kind: 'adjust' }>).target, { kind: 'pattern', pattern: 'line' });
+    for (const id of ['s4-align-l', 's4-align-line']) assert.equal((node(4, id) as Extract<FlowNode, { kind: 'adjust' }>).flat, true);
+    // the filter hides every top-layer sticker that is not a yellow edge or the center
+    const d = flow.display!(optionDemo(4, 's4-pattern', /^L shape/));
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+      if (d.vis.top[r][c] === '1') assert.equal(d.colors.top[r][c], Y, `top[${r}][${c}] shown but not yellow`);
+    }
+    for (const f of ['front', 'right', 'back', 'left'] as const) assert.deepEqual(d.vis[f][0], ['0', '0', '0'], `${f} top row is "any color"`);
+  });
+  test('the L line-up picture IS the simulated L: back-middle + center + middle-left yellow, nothing else', () => {
+    const flow = FOLLOW_ALONG[4];
+    const start = optionDemo(4, 's4-pattern', /^L shape/);
+    const goal = flow.display!(after(start, node(4, 's4-align-l')));
+    const drawn = goal.colors.top.map((row, r) => row.map((x, c) => (x === Y && goal.vis.top[r][c] === '1' ? 'Y' : '.')).join(' '));
+    console.log(`  L line-up picture (rows back -> front): [${drawn.join('] [')}]`);
+    assert.deepEqual(drawn, ['. Y .', 'Y Y .', '. . .']);
+    assert.deepEqual(yellowTopEdges(goal.colors), [false, false, true, true], 'simulated top edges: back and left yellow');
+  });
+  test('starting from the dot, the picture drawn at every Stage 4 step equals the simulated top face', () => {
+    const flow = FOLLOW_ALONG[4];
+    const drawn = (d: Demo) => { const v = flow.display!(d); return v.colors.top.map((row, r) => row.map((x, c) => (x === Y && v.vis.top[r][c] === '1' ? 'Y' : '.')).join('')).join('/'); };
+    const truth = (d: Demo) => { const [f, r, b, l] = yellowTopEdges(d.colors); const c = (x: boolean) => (x ? 'Y' : '.'); return `.${c(b)}./${c(l)}Y${c(r)}/.${c(f)}.`; };
+    let d = optionDemo(4, 's4-pattern', /^Dot/);
+    const steps: [string, Demo][] = [['dot', d]];
+    d = runSeq(d, node(4, 's4-dot')); steps.push(['check after go 1 (L)', d]);
+    d = after(d, node(4, 's4-align-l')); steps.push(['L line-up target', d]);
+    d = runSeq(d, node(4, 's4-l')); steps.push(['check after go 2 (line)', d]);
+    d = after(d, node(4, 's4-align-line')); steps.push(['line line-up target', d]);
+    d = runSeq(d, node(4, 's4-line')); steps.push(['check after go 3 (cross)', d]);
+    for (const [name, st] of steps) {
+      console.log(`  ${name.padEnd(26)} picture ${drawn(st)}   simulated ${truth(st)}`);
+      assert.equal(drawn(st), truth(st), name);
+    }
+    assert.equal(drawn(steps[2][1]), '.Y./YY./...', 'L line-up: back-middle + center + middle-left');
   });
   test('every real pattern of yellow edges reaches the cross within 3 goes', () => {
     const alg = ALGORITHMS.ALG4;

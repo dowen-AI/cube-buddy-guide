@@ -1,7 +1,6 @@
 import { CUBE_COLORS, type CubeState } from '@/hooks/useCubeState';
 import { ANY_COLOR, stickerIndex, type Face } from '@/lib/cubeGeometry';
-import { TOP_CORNERS, cornerInSpot, edgeMatches, type Demo } from '@/lib/cubeDemo';
-import type { TopPattern } from '@/data/followAlong';
+import { TOP_CORNERS, cornerInSpot, edgeMatches, yellowTopEdges, type Demo } from '@/lib/cubeDemo';
 
 const GREY = ANY_COLOR;
 const COS30 = Math.cos(Math.PI / 6);
@@ -50,33 +49,26 @@ export const CubePicture = ({ demo, colors, view = 'top', size = 72, title }: { 
   );
 };
 
-// Top face only, flat, for the Stage 4 "which pattern do you see?" question.
-export const TopPatternPicture = ({ pattern, size = 72 }: { pattern: TopPattern; size?: number }) => {
-  const yellowEdges: Record<TopPattern, [boolean, boolean, boolean, boolean]> = {
-    // [back, left, right, front]
-    dot: [false, false, false, false],
-    l: [true, true, false, false],
-    line: [false, true, true, false],
-    cross: [true, true, true, true],
-  };
-  const [back, left, right, front] = yellowEdges[pattern];
-  const cell = (r: number, c: number) => {
-    if (r === 1 && c === 1) return CUBE_COLORS.yellow;
-    if (r === 0 && c === 1) return back ? CUBE_COLORS.yellow : GREY;
-    if (r === 1 && c === 0) return left ? CUBE_COLORS.yellow : GREY;
-    if (r === 1 && c === 2) return right ? CUBE_COLORS.yellow : GREY;
-    if (r === 2 && c === 1) return front ? CUBE_COLORS.yellow : GREY;
-    return GREY;
-  };
+// The top face only, flat, drawn from a simulated cube: yellow where the top
+// sticker is yellow, "any color" grey everywhere else. Used for Stage 4, where
+// only the yellow shape on top matters.
+export const topShapeName = (s: CubeState) => {
+  const [f, r, b, l] = yellowTopEdges(s);
+  const n = [f, r, b, l].filter(Boolean).length;
+  return n === 0 ? 'dot' : n === 4 ? 'cross' : n === 2 ? ((f && b) || (l && r) ? 'line' : 'L shape') : `${n} yellow edges`;
+};
+export const TopFacePicture = ({ demo, size = 72 }: { demo: Demo; size?: number }) => {
+  // yellow edges and the center; corners are never part of the shape
+  const cell = (r: number, c: number) => (demo.colors.top[r][c] === CUBE_COLORS.yellow && (r + c) % 2 === 1 || (r === 1 && c === 1) ? CUBE_COLORS.yellow : GREY);
   // The caption must stay readable (14px or more) at any picture size.
   const font = Math.max(3.6, (14 / size) * 34);
   const caption = size >= 130 ? 'FRONT (toward you)' : '▼ YOU';
   const h = 34 + font + 1.5;
   return (
-    <svg viewBox={`0 0 34 ${h}`} width={size} height={size * (h / 34)} role="img" aria-label={`Top view: ${pattern === 'l' ? 'L shape' : pattern}`}>
+    <svg viewBox={`0 0 34 ${h}`} width={size} height={size * (h / 34)} role="img" aria-label={`Top view: ${topShapeName(demo.colors)}`}>
       <rect x="0" y="0" width="34" height="34" rx="3" fill={CUBE_COLORS.black} />
       {[0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => (
-        <rect key={`${r}${c}`} x={1.5 + c * 10.5} y={1.5 + r * 10.5} width="10" height="10" rx="1.5" fill={cell(r, c)} />
+        <rect key={`${r}${c}`} x={1.5 + c * 10.5} y={1.5 + r * 10.5} width="10" height="10" rx="1.5" fill={cell(r, c)} data-cell={`${r}${c}`} data-yellow={cell(r, c) === CUBE_COLORS.yellow || undefined} />
       )))}
       <text x="17" y={34 + font} textAnchor="middle" fontSize={font} fontWeight="600" fill="currentColor">{caption}</text>
     </svg>

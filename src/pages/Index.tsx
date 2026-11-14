@@ -106,7 +106,7 @@ const Index = () => {
         <title>Rubik's Cube Beginner's Guide - Learn to Solve in 7 Simple Stages</title>
         <meta
           name="description"
-          content="Learn to solve a Rubik's Cube one turn at a time. A moving 3D cube shows every turn in plain words. No letters to decode, no flipping the cube, and your place is saved."
+          content="Learn to solve a Rubik's Cube one turn at a time. A 3D cube with a big arrow shows every turn in plain words. No letters to decode, no flipping the cube, and your place is saved."
         />
         <meta name="keywords" content="Rubik's Cube, solve Rubik's Cube, beginner guide, tutorial, 3x3 cube, Layer by Layer method" />
       </Helmet>

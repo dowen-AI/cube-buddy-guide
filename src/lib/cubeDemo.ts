@@ -174,3 +174,18 @@ export const topEdgeAlignedAtFront = (s: CubeState) => topEdgeReady(s, TOP_EDGES
 
 // Stage 7: the top front-right corner has its yellow facing up.
 export const yellowUpAtFrontRight = (s: CubeState) => at(s, FRONT_RIGHT_TOP[0]) === C.yellow;
+
+// Stage 4 only cares which top stickers are yellow: show those, and draw every
+// other sticker of the top layer as "any color", so no stray colors distract.
+export const yellowTopOnly = (d: Demo): Demo => ({
+  colors: d.colors,
+  vis: {
+    ...d.vis,
+    // every yellow edge sticker on top shows, wherever it came from; corners stay hidden (not part of the shape)
+    top: d.colors.top.map((row, r) => row.map((x, c) => (x === C.yellow && (isEdgeSticker(r, c) || isCenter(r, c)) ? '1' : '0'))),
+    front: d.vis.front.map((row, r) => (r === 0 ? row.map(() => '0') : row)),
+    right: d.vis.right.map((row, r) => (r === 0 ? row.map(() => '0') : row)),
+    back: d.vis.back.map((row, r) => (r === 0 ? row.map(() => '0') : row)),
+    left: d.vis.left.map((row, r) => (r === 0 ? row.map(() => '0') : row)),
+  },
+});

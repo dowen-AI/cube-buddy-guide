@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { CUBE_COLORS, type CubeState, type MoveName } from '@/hooks/useCubeState';
-import { ANY_COLOR, cubeletFaces, hiddenFaceView, isInMoveLayer, moveRotation, stickerIndex, type CubeView, type Face } from '@/lib/cubeGeometry';
+import { ANY_COLOR, cubeletFaces, hiddenFaceView, isInMoveLayer, moveArrow, moveRotation, stickerIndex, type CubeView, type Face } from '@/lib/cubeGeometry';
 import { useInView } from '@/hooks/useInView';
 
 const ARROW = '#d946ef';
@@ -63,26 +63,19 @@ const arcArrow = (radius: number, width: number, cw: boolean) => {
 // Arrows are drawn where a beginner holding the cube can see them: on the
 // front face for R, L, U, D and F, and along the back edge of the top for B.
 const MoveArrow = ({ move }: { move: MoveName }) => {
-  const base = move[0];
-  const prime = move.endsWith("'");
   const { geometry, edge, position, rotation } = useMemo(() => {
-    const zFront = 1.53;
-    if (base === 'F') {
-      return { geometry: arcArrow(0.95, 0.16, !prime), edge: arcArrow(0.95, 0.27, !prime), position: [0, 0, zFront] as const, rotation: [0, 0, 0] as const };
+    const spec = moveArrow(move);
+    const out = 1.53; // just proud of the stickers
+    if (spec.kind === 'arc') {
+      return { geometry: arcArrow(0.95, 0.16, spec.clockwise), edge: arcArrow(0.95, 0.27, spec.clockwise), position: [0, 0, out] as const, rotation: [0, 0, 0] as const };
     }
     const g = straightArrow(2.9, 0.16, 0.42);
     const e = straightArrow(3.05, 0.27, 0.5);
-    const dirAngle: Record<string, number> = {
-      R: prime ? -Math.PI / 2 : Math.PI / 2,
-      L: prime ? Math.PI / 2 : -Math.PI / 2,
-      U: prime ? 0 : Math.PI,
-      D: prime ? Math.PI : 0,
-      B: prime ? 0 : Math.PI,
-    };
-    if (base === 'B') return { geometry: g, edge: e, position: [0, 1.53, -1] as const, rotation: [-Math.PI / 2, 0, dirAngle.B] as const };
-    const pos: Record<string, [number, number, number]> = { R: [1, 0, zFront], L: [-1, 0, zFront], U: [0, 1, zFront], D: [0, -1, zFront] };
-    return { geometry: g, edge: e, position: pos[base], rotation: [0, 0, dirAngle[base]] as const };
-  }, [base, prime]);
+    const [x, y, z] = spec.at;
+    const [dx, dy] = spec.dir;
+    if (spec.on === 'top') return { geometry: g, edge: e, position: [x, out, z] as const, rotation: [-Math.PI / 2, 0, dx > 0 ? 0 : Math.PI] as const };
+    return { geometry: g, edge: e, position: [x, y, out] as const, rotation: [0, 0, Math.atan2(dy, dx)] as const };
+  }, [move]);
   return (
     <group position={position as unknown as THREE.Vector3Tuple} rotation={rotation as unknown as THREE.Vector3Tuple}>
       <mesh geometry={edge} position={[0, 0, -0.005]} renderOrder={1}>
@@ -213,6 +206,8 @@ interface InteractiveCube3DProps {
   animate?: boolean;
   loop?: boolean;
   speed?: number;
+  // always show this second view (used on check screens to show the bottom face as well)
+  extraView?: Exclude<CubeView, 'top'>;
 }
 
 const CubeCanvas = ({ view, running, controls, ...scene }: SceneProps & { view: CubeView; running: boolean; controls: boolean }) => (
@@ -227,19 +222,19 @@ const CubeCanvas = ({ view, running, controls, ...scene }: SceneProps & { view: 
   </Canvas>
 );
 
-export const InteractiveCube3D = ({ colors, vis, move, view = 'top', onFaceClick, className = 'w-full h-64 md:h-80', label, animate = true, loop = true, speed = 1 }: InteractiveCube3DProps) => {
+export const InteractiveCube3D = ({ colors, vis, move, view = 'top', onFaceClick, className = 'w-full h-64 md:h-80', label, animate = true, loop = true, speed = 1, extraView }: InteractiveCube3DProps) => {
   const { ref, inView } = useInView<HTMLDivElement>();
   const [reduced] = useState(prefersReducedMotion);
   const moving = Boolean(move) && animate && !reduced;
   const running = moving && inView;
   // A turn of the bottom, left or back can't be seen from the front: add a second, small view of that face.
-  const inset = move ? hiddenFaceView(move) : null;
+  const inset = extraView ?? (move ? hiddenFaceView(move) : null);
   const scene: SceneProps = { colors, vis, move, animate: moving, loop, speed, onFaceClick };
   return (
     <div ref={ref} className={`relative ${className}`} role="img" aria-label={label ?? '3D cube'} data-animating={running || undefined}>
       {inView ? <CubeCanvas view={view} running={running} controls {...scene} /> : null}
       {inset && inset !== view && inView ? (
-        <div className="pointer-events-none absolute bottom-1 left-1 h-[112px] w-[112px] overflow-hidden rounded-xl border-2 border-fuchsia-500 bg-background shadow-md md:h-40 md:w-40" data-testid="inset-view" data-view={inset}>
+        <div className="pointer-events-none absolute bottom-1 left-1 aspect-square h-[min(112px,calc(100%-0.5rem))] overflow-hidden rounded-xl border-2 border-fuchsia-500 bg-background shadow-md md:h-[min(160px,calc(100%-0.5rem))]" data-testid="inset-view" data-view={inset}>
           <CubeCanvas view={inset} running={running} controls={false} {...scene} onFaceClick={undefined} />
           <span className="absolute inset-x-0 top-0 bg-background/90 px-1 text-center text-sm font-semibold leading-tight text-foreground">{VIEW_LABEL[inset]}</span>
         </div>

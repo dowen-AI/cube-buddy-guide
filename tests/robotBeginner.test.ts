@@ -194,7 +194,22 @@ const STAGE_GOAL: Record<number, Check> = {
   7: solved,
 };
 
-interface Stats { taps: number[]; maxRepeat: Record<string, number>; visited: Set<string>; known: Set<string>; shortcutTaps: number }
+interface Stats { taps: number[]; maxRepeat: Record<string, number>; visited: Set<string>; known: Set<string>; shortcutTaps: number; log?: string[] }
+
+// What every completed set of turns must leave untouched. If a set of turns
+// ever damaged finished work (the way a wrong Insert left would turn two white
+// stickers green), this fails on the very next line.
+const middleRowsDone = (s: CubeState) => SIDES.every((f) => s[f].slice(1).flat().every((x) => x === center(s, f)));
+const count = <T,>(xs: T[], ok: (x: T) => boolean) => xs.filter(ok).length;
+const KEEPS: Record<number, (before: CubeState, after: CubeState) => string | null> = {
+  1: (b, a) => (count(BOTTOM_EDGES, (e) => bottomEdgePlaced(a, e)) >= count(BOTTOM_EDGES, (e) => bottomEdgePlaced(b, e)) ? null : 'a placed white edge was disturbed'),
+  2: (b, a) => (!crossDone(a) ? 'the white cross was damaged' : count(BOTTOM_CORNERS, (k) => bottomCornerSolved(a, k)) >= count(BOTTOM_CORNERS, (k) => bottomCornerSolved(b, k)) ? null : 'a finished corner was disturbed'),
+  3: (b, a) => (!firstLayerDone(a) ? 'the white bottom layer was damaged' : count(MIDDLE_EDGES, (e) => middleSolved(a, e)) >= count(MIDDLE_EDGES, (e) => middleSolved(b, e)) ? null : 'a finished middle edge was disturbed'),
+  4: (_b, a) => (firstLayerDone(a) && middleRowsDone(a) ? null : 'the first two layers were damaged'),
+  5: (_b, a) => (firstLayerDone(a) && middleRowsDone(a) && yellowTopEdges(a).every(Boolean) ? null : 'the first two layers or the yellow cross were damaged'),
+  6: (_b, a) => (firstLayerDone(a) && middleRowsDone(a) && yellowTopEdges(a).every(Boolean) && [0, 1, 2, 3].some((i) => { let t = a; for (let k = 0; k < i; k++) t = step(t, 'U'); return edgeMatches(t).every(Boolean); }) ? null : 'earlier stages were damaged'),
+  7: () => null, // the lower layers are meant to look mixed up until the last corner; the finish screen checks the whole cube
+};
 
 const runStage = (stageId: number, start: CubeState, rand: () => number, stats: Stats): CubeState => {
   const flow = FOLLOW_ALONG[stageId];
@@ -226,7 +241,11 @@ const runStage = (stageId: number, start: CubeState, rand: () => number, stats: 
       id = resolveTarget(opt.next, counters);
     } else {
       const moves = sequenceMoves(node);
+      const beforeMoves = s;
       for (const m of moves) s = executeMove(s, m);
+      const damage = KEEPS[stageId](beforeMoves, s);
+      assert.equal(damage, null, `${id} (${moves.join(' ')}): ${damage}`);
+      stats.log?.push(`${node.name} (${moves.join(' ')})`);
       taps += moves.length - 1;
       // With the "I know this one" shortcut, a move done before costs 2 taps instead of one per turn.
       const key = moves.join(' ');
@@ -282,5 +301,53 @@ describe('robot beginner: random scrambles, following the guide literally', () =
     const never = all.filter((id) => !stats.visited.has(id));
     console.log(`robot: ${N}/${N} solved · average ${Math.round(total / N)} taps per solve, worst ${worst} · ${Math.round((total + saved) / N)} with the from-memory shortcut · worst taps per stage ${stats.taps.slice(1).join('/')} · most repeats ${JSON.stringify(stats.maxRepeat)}`);
     assert.deepEqual(never, [], 'screens no scramble ever reached');
+  });
+
+  // Three full solves written out: the scramble as a list of turns, which sets
+  // of turns the guide used, and the six faces at the end.
+  const LETTER: Record<string, string> = { [C.white]: 'W', [C.yellow]: 'Y', [C.red]: 'R', [C.green]: 'G', [C.blue]: 'B', [C.orange]: 'O' };
+  const faces = (s: CubeState) => (['top', 'front', 'right', 'back', 'left', 'bottom'] as Face[]).map((f) => `${f} ${s[f].map((row) => row.map((x) => LETTER[x]).join('')).join('/')}`).join(' | ');
+  const QUARTERS: MoveName[] = ['R', "R'", 'L', "L'", 'U', "U'", 'D', "D'", 'F', "F'", 'B', "B'", 'R2', 'L2', 'U2', 'D2', 'F2', 'B2'];
+  const solveWritten = (seed: number) => {
+    const rand = rng(seed);
+    const scrambleMoves = Array.from({ length: 25 }, () => QUARTERS[Math.floor(rand() * QUARTERS.length)]);
+    let s = scrambleMoves.reduce((st, m) => executeMove(st, m), getSolvedCube());
+    const start = s;
+    const log: string[] = [];
+    for (let stage = 1; stage <= 7; stage++) s = runStage(stage, s, rand, { taps: [], maxRepeat: {}, visited: new Set(), known: new Set(), shortcutTaps: 0, log });
+    return { scrambleMoves, start, end: s, log };
+  };
+  const tally = (log: string[]) => Object.entries(log.reduce<Record<string, number>>((acc, x) => { const k = x.split(' (')[0]; acc[k] = (acc[k] ?? 0) + 1; return acc; }, {})).map(([k, n]) => `${k} x${n}`).join(', ');
+  test('3 written-out solves, one of which needs Insert left, all end fully solved', () => {
+    let seed = 1;
+    let withLeft: ReturnType<typeof solveWritten> | null = null;
+    for (; seed < 200 && !withLeft; seed++) { const r = solveWritten(seed); if (r.log.some((x) => x.startsWith('Insert left'))) withLeft = r; }
+    assert.ok(withLeft, 'found a scramble that needs Insert left');
+    const others = [solveWritten(5001), solveWritten(5002)];
+    for (const [label, r] of [['A (needs Insert left)', withLeft], ['B', others[0]], ['C', others[1]]] as const) {
+      console.log(`  Solve ${label}`);
+      console.log(`    scramble: ${r.scrambleMoves.join(' ')}`);
+      console.log(`    start:    ${faces(r.start)}`);
+      console.log(`    guide used: ${tally(r.log)}`);
+      console.log(`    end:      ${faces(r.end)}`);
+      assert.ok(solved(r.end), `solve ${label} ends solved`);
+      assert.ok((Object.keys(r.end) as Face[]).every((f) => r.end[f].flat().every((x) => x === r.end[f][1][1])));
+    }
+    assert.ok(withLeft.log.filter((x) => x.startsWith('Insert left')).length >= 1);
+  });
+  test("a wrong Insert left (U' L U L' U F U' F') is caught at once by the damage check", () => {
+    // start from a cube where the guide would use Insert left
+    let caught = '';
+    for (let seed = 1; seed < 200 && !caught; seed++) {
+      const rand = rng(seed);
+      let s = Array.from({ length: 25 }, () => QUARTERS[Math.floor(rand() * QUARTERS.length)]).reduce((st, m) => executeMove(st, m), getSolvedCube());
+      s = runStage(1, s, rand, { taps: [], maxRepeat: {}, visited: new Set(), known: new Set(), shortcutTaps: 0 });
+      s = runStage(2, s, rand, { taps: [], maxRepeat: {}, visited: new Set(), known: new Set(), shortcutTaps: 0 });
+      const wrong = ["U'", 'L', 'U', "L'", 'U', 'F', "U'", "F'"].reduce((st, m) => executeMove(st, m as MoveName), s);
+      const damage = KEEPS[3](s, wrong);
+      if (damage) caught = damage;
+    }
+    console.log(`  wrong sequence -> "${caught}"`);
+    assert.equal(caught, 'the white bottom layer was damaged');
   });
 });

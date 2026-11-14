@@ -138,7 +138,7 @@ export const CubeSolverSection = ({ onPlayingChange }: CubeSolverSectionProps) =
         <div className="mb-8 text-center">
           <h2 className="mb-3 font-display text-3xl font-bold text-foreground">Just Want the Solution?</h2>
           <p className="mx-auto max-w-2xl text-base text-muted-foreground">
-            Copy your cube's colors into the app, face by face, then follow the turns one at a time on a moving cube.
+            Copy your cube's colors into the app, face by face, then follow the turns one at a time. In the solver you can also press Play and it steps through them for you.
           </p>
         </div>
 
