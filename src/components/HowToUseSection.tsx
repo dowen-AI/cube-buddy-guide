@@ -9,7 +9,7 @@ const tips = [
   {
     icon: RotateCcw,
     title: "2. Do one turn, then tap",
-    description: "The cube on screen turns one layer, over and over, until you have done the same on yours. Tap \"I did it\" for the next turn."
+    description: "The screen shows a single turn: a 3D cube with a big arrow, with that layer turning on screen unless your device has motion switched off. Do it on your cube, then tap \"I did it\"."
   },
   {
     icon: Lightbulb,

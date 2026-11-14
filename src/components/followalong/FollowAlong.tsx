@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowLeft, Brain, Check, HelpCircle, LifeBuoy, RotateCcw
 import { cn } from '@/lib/utils';
 import type { MoveName } from '@/hooks/useCubeState';
 import { InteractiveCube3D } from '@/components/InteractiveCube3D';
-import { CubePicture, TopDownPicture, TopPatternPicture } from './Pictures';
+import { CubePicture, TopDownPicture, TopFacePicture } from './Pictures';
 import { MOVE_HINT, MOVE_TEXT, inverseMove } from '@/lib/moves';
 import { MOVE_FACE, type Face } from '@/lib/cubeGeometry';
 import { applyStep, solvedFor, type Demo } from '@/lib/cubeDemo';
@@ -194,7 +194,7 @@ const CounterChips = ({ items, counters, note, overlay }: { items: CounterDispla
 );
 
 const PictureView = ({ picture, size = 72 }: { picture: Picture; size?: number }) =>
-  picture.kind === 'pattern' ? <TopPatternPicture pattern={picture.pattern} size={size} />
+  picture.kind === 'topface' ? <TopFacePicture demo={picture.demo()} size={size} />
     : picture.kind === 'top' ? <TopDownPicture demo={picture.demo()} marks={picture.marks} size={size} />
       : <CubePicture demo={picture.demo()} view={picture.view} size={size} />;
 
@@ -299,11 +299,21 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
   }, [activeMove, s.undo, s.phase, seqNode]);
 
   const atCheckpoint = Boolean(seqNode && s.phase === 'checkpoint' && !s.undo && !s.undone);
-  const goal = atCheckpoint ? seqNode!.checkpoint.goal : undefined;
-  // A flat picture (looking down at the top) replaces the 3D cube where only the top matters.
-  const flatPicture: Picture | null = goal && goal.kind !== 'cube' ? goal : node.kind === 'finish' && node.picture.kind !== 'cube' ? node.picture : null;
+  const checkpoint = atCheckpoint ? seqNode!.checkpoint : undefined;
+  const goal = checkpoint?.goal;
+  // every picture of a stage goes through the stage's display filter (Stage 4 hides everything on top that is not yellow)
+  const display = flow.display ?? ((d: Demo) => d);
+  // "Turn until it lines up" screens show the finished position, still, so the picture is the target.
+  const turnGoal = node.kind === 'adjust' && node.showGoal !== false && !s.undone ? node.demoAfter(s.demo) : null;
+  const shown = display(turnGoal ?? (goal?.kind === 'cube' ? goal.demo() : node.kind === 'finish' && node.picture.kind === 'cube' ? node.picture.demo() : s.demo));
+  // A flat picture (looking straight down at the top) replaces the 3D cube where only the top matters.
+  // It is always drawn from a simulated cube, never from a hand-made table.
+  const flatPicture: Picture | null =
+    goal && goal.kind !== 'cube' ? goal
+      : checkpoint?.flat || (node.kind === 'adjust' && node.flat && turnGoal) ? { kind: 'topface', demo: () => shown }
+        : node.kind === 'finish' && node.picture.kind !== 'cube' ? node.picture : null;
   const view = goal?.kind === 'cube' && goal.view ? goal.view : node.view ?? 'top';
-  const cubeDemo = goal?.kind === 'cube' ? goal.demo() : node.kind === 'finish' && node.picture.kind === 'cube' ? node.picture.demo() : s.demo;
+  const cubeDemo = shown;
   const showStage = node.kind !== 'choice';
   const hasGrey = Object.values(cubeDemo.vis).some((face) => face.some((row) => row.some((v) => v === '0')));
   const reassure = s.phase === 'moves' ? seqNode?.reassure?.(s.counters) : undefined;
@@ -436,14 +446,10 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
       </div>
     );
   } else if (node.kind === 'adjust' || node.kind === 'info') {
-    const target = node.kind === 'adjust' ? node.target : undefined;
     controls = (
       <div className="flex flex-col gap-2">
         {node.kind === 'adjust' ? <p className="text-sm font-semibold uppercase tracking-wide text-primary">Turn until it lines up</p> : null}
-        <div className="flex items-start gap-3">
-          <p className={cn(title, 'min-w-0 flex-1')} data-testid="move-instruction">{node.title}</p>
-          {target ? <span className="shrink-0" data-testid="target-picture"><PictureView picture={target} size={84} /></span> : null}
-        </div>
+        <p className={title} data-testid="move-instruction">{node.title}</p>
         {node.body ? <p className={body}>{node.body}</p> : null}
         <div className="flex gap-2">
           <BigButton onClick={() => {
@@ -498,6 +504,8 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
                 vis={cubeDemo.vis}
                 move={activeMove}
                 view={view}
+                animate={!turnGoal}
+                extraView={checkpoint?.alsoBelow && view !== 'bottom' ? 'bottom' : undefined}
                 onFaceClick={onFaceClick}
                 label={activeMove ? `Cube showing the move: ${MOVE_TEXT[activeMove]}` : 'Cube picture'}
               />
@@ -505,9 +513,9 @@ export const FollowAlong = ({ flow, isComplete, onComplete, onClose }: FollowAlo
             {onMoveScreen && goNumber > 1 ? (
               <span className="absolute right-2 top-2 rounded-xl bg-primary px-3 py-1 text-lg font-bold text-primary-foreground" data-testid="go-number">Go {goNumber}</span>
             ) : null}
-            {!flatPicture && (atCheckpoint || node.kind === 'finish' || hasGrey) ? (
+            {!flatPicture && (atCheckpoint || turnGoal || node.kind === 'finish' || hasGrey) ? (
               <span className="absolute bottom-1 right-1 max-w-[62%] rounded-lg bg-background/90 px-2 py-0.5 text-right text-sm font-semibold leading-tight text-foreground" data-testid="grey-note">
-                {atCheckpoint || node.kind === 'finish' ? 'Your cube should look like this' : ''}{(atCheckpoint || node.kind === 'finish') && hasGrey ? ' · ' : ''}{hasGrey ? 'dark grey = any color' : ''}
+                {turnGoal ? 'Turn until yours looks like this' : atCheckpoint || node.kind === 'finish' ? 'Your cube should look like this' : ''}{(turnGoal || atCheckpoint || node.kind === 'finish') && hasGrey ? ' · ' : ''}{hasGrey ? 'dark grey = any color' : ''}
               </span>
             ) : null}
           </div>

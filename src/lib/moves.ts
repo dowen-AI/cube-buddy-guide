@@ -38,6 +38,33 @@ export const MOVE_HINT: Partial<Record<MoveName, string>> = {
   "B'": "From the front, the back face's top edge moves to your right.",
 };
 
+// The short words for each move, used in the chant line ("Right up, top left…").
+// This table and MOVE_TEXT above are the only places direction words are written:
+// every screen's words are looked up from the move itself, never typed by hand.
+// tests/moveWords.test.ts checks each entry against the move engine.
+export const MOVE_WORDS: Record<MoveName, string> = {
+  R: 'Right up',
+  "R'": 'Right down',
+  R2: 'Right twice',
+  L: 'Left down',
+  "L'": 'Left up',
+  L2: 'Left twice',
+  U: 'Top left',
+  "U'": 'Top right',
+  U2: 'Top twice',
+  D: 'Bottom right',
+  "D'": 'Bottom left',
+  D2: 'Bottom twice',
+  F: 'Front clockwise',
+  "F'": 'Front counter-clockwise',
+  F2: 'Front twice',
+  B: 'Back clockwise',
+  "B'": 'Back counter-clockwise',
+  B2: 'Back twice',
+};
+// "Right up, top left, right down, top right"
+export const chantFor = (moves: MoveName[]) => moves.map((m, i) => (i === 0 ? MOVE_WORDS[m] : MOVE_WORDS[m].toLowerCase())).join(', ');
+
 export const isDoubleMove = (m: MoveName) => m.endsWith('2');
 
 export const inverseMove = (m: MoveName): MoveName =>

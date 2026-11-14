@@ -35,7 +35,7 @@ export const HeroSection = ({ onStart }: { onStart: () => void }) => {
           >
             Just solve my cube for me
           </button>
-          <p className="text-base text-muted-foreground">Grab your cube. One turn at a time, with a moving picture for every turn.</p>
+          <p className="text-base text-muted-foreground">Grab your cube. One turn at a time, each shown on a 3D cube with a big arrow.</p>
         </div>
 
         {/* Subtitle */}
@@ -50,7 +50,7 @@ export const HeroSection = ({ onStart }: { onStart: () => void }) => {
             7 Simple Stages
           </span>
           <span className="px-4 py-2 bg-cube-blue/10 text-cube-blue rounded-full text-sm font-medium">
-            Moving 3D Cube
+            3D Cube + Arrows
           </span>
           <span className="px-4 py-2 bg-cube-green/10 text-cube-green rounded-full text-sm font-medium">
             Progress Tracking

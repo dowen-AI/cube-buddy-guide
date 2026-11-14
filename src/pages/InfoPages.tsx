@@ -15,7 +15,7 @@ const Shell = ({ title, children }: { title: string; children: React.ReactNode }
 
 export const About = () => (
   <Shell title="About this guide">
-    <p>This is a free guide that teaches a complete beginner to solve a standard 3×3 Rubik's Cube. You hold your own cube, the guide shows one turn at a time with a moving picture, and you tap when you have done it.</p>
+    <p>This is a free guide that teaches a complete beginner to solve a standard 3×3 Rubik's Cube. You hold your own cube, the guide shows one turn at a time on a 3D cube with a big arrow (the layer also turns on screen when your device allows motion), and you tap when you have done it.</p>
     <h2 className="font-display text-xl font-bold">How it teaches</h2>
     <ul className="list-disc space-y-2 pl-6">
       <li>The solve is split into 7 stages, bottom layer first, then the middle, then the top. This is called the layer-by-layer method.</li>
@@ -24,7 +24,7 @@ export const About = () => (
       <li>If you make a wrong turn, "I messed up" walks your real cube back one turn at a time.</li>
     </ul>
     <h2 className="font-display text-xl font-bold">The solver</h2>
-    <p>"Just solve my cube for me" lets you copy your cube's colors into the page. It then works out a short solution and plays it one turn at a time. The search uses Herbert Kociemba's two-phase method through the open-source cubejs library.</p>
+    <p>"Just solve my cube for me" lets you copy your cube's colors into the page. It then works out a short solution and shows it one turn at a time. The solver's Play button steps through the turns by itself. The search uses Herbert Kociemba's two-phase method through the open-source cubejs library.</p>
     <h2 className="font-display text-xl font-bold">Cost</h2>
     <p>Free. There is no sign-up, no paywall and no advertising.</p>
   </Shell>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, Link2, Printer, RotateCcw, Share2 } from 'lucide-react';
 
 const SITE_URL = 'https://cube-buddy-guide.lovable.app/';
-const SHARE_TEXT = "Learn to solve a Rubik's Cube one turn at a time, with a moving picture for every turn.";
+const SHARE_TEXT = "Learn to solve a Rubik's Cube one turn at a time, with a 3D picture and a big arrow for every turn.";
 
 const btn = 'flex min-h-14 items-center justify-center gap-2 rounded-xl border-2 border-border bg-card px-5 text-base font-semibold text-foreground transition-colors hover:bg-muted';
 

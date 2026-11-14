@@ -61,3 +61,23 @@ export const moveRotation = (move: MoveName): { axis: 'x' | 'y' | 'z'; quarters:
 export type CubeView = 'top' | 'bottom' | 'left' | 'back';
 export const hiddenFaceView = (move: MoveName): Exclude<CubeView, 'top'> | null =>
   move[0] === 'D' ? 'bottom' : move[0] === 'L' ? 'left' : move[0] === 'B' ? 'back' : null;
+
+// Where the arrow for a move is drawn and which way it points, in cube
+// coordinates (x right, y up, z toward the viewer). Straight arrows lie on the
+// front face (or, for the back face, along the back row of the top); the front
+// face gets a curved arrow. tests/moveWords.test.ts checks every arrow against
+// the direction the layer really turns.
+export type ArrowSpec =
+  | { kind: 'arc'; clockwise: boolean }
+  | { kind: 'straight'; on: 'front' | 'top'; at: [number, number, number]; dir: [number, number, number] };
+export const moveArrow = (move: MoveName): ArrowSpec => {
+  const prime = move.endsWith("'");
+  switch (move[0]) {
+    case 'F': return { kind: 'arc', clockwise: !prime };
+    case 'R': return { kind: 'straight', on: 'front', at: [1, 0, 1], dir: [0, prime ? -1 : 1, 0] };
+    case 'L': return { kind: 'straight', on: 'front', at: [-1, 0, 1], dir: [0, prime ? 1 : -1, 0] };
+    case 'U': return { kind: 'straight', on: 'front', at: [0, 1, 1], dir: [prime ? 1 : -1, 0, 0] };
+    case 'D': return { kind: 'straight', on: 'front', at: [0, -1, 1], dir: [prime ? -1 : 1, 0, 0] };
+    default: return { kind: 'straight', on: 'top', at: [0, 1, -1], dir: [prime ? 1 : -1, 0, 0] }; // B
+  }
+};
