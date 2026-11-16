@@ -108,7 +108,8 @@ const ANSWER: Record<string, Answer> = {
     if (MIDDLE_EDGES.some((e) => hasColor(s, [e.a, e.b], W))) options.push(/^Middle row/);
     if (BOTTOM_EDGES.some((e) => at(s, e.down) === W && at(s, e.side) !== center(s, e.face))) options.push(/^Bottom: white DOWN/);
     if (BOTTOM_EDGES.some((e) => at(s, e.side) === W)) options.push(/^Bottom: white sideways/);
-    if (BOTTOM_EDGES.filter((e) => bottomEdgePlaced(s, e)).length > (c.petals ?? 0)) options.push(/^Bottom: done/);
+    // Nothing is counted by hand: the robot looks at its cube, as a person would.
+    if (crossDone(s)) { assert.equal(options.length, 0, 'stage 1: the cross is done but a picture still describes an unfinished edge'); return [s, /^All 4 are done/]; }
     assert.ok(options.length, 'stage 1: a white edge is left but no picture describes it');
     return [s, pick(options)];
   },
@@ -120,16 +121,17 @@ const ANSWER: Record<string, Answer> = {
     const options: RegExp[] = [];
     if (topCornerHasWhite(s)) options.push(/^In the top row/);
     if (BOTTOM_CORNERS.some((k) => hasColor(s, [k.down, k.a, k.b], W) && !bottomCornerSolved(s, k))) options.push(/^In the bottom row, but wrong/);
-    if (BOTTOM_CORNERS.filter((k) => bottomCornerSolved(s, k)).length > (c.corners ?? 0)) options.push(/^Done, count it/);
+    if (firstLayerDone(s)) { assert.equal(options.length, 0, 'stage 2: all corners are done but a picture still describes an unfinished one'); return [s, /^All 4 are done/]; }
     assert.ok(options.length, 'stage 2: a white corner is left but no picture describes it');
     return [s, pick(options)];
   },
   's3-where': (s, c, pick) => {
     const options: RegExp[] = [];
     const found = TOP_NO_YELLOW(s);
+    const allDone = MIDDLE_EDGES.every((e) => middleSolved(s, e));
     if (found) options.push(/^Found one/);
-    if (!found && MIDDLE_EDGES.some((e) => !middleSolved(s, e))) options.push(/^None/);
-    if (MIDDLE_EDGES.filter((e) => middleSolved(s, e)).length > (c.edges ?? 0)) options.push(/A middle edge is done/);
+    if (!found && !allDone) options.push(/^None\. A middle edge is still wrong/);
+    if (allDone) { assert.equal(options.length, 0, 'stage 3: the middle row is done but a top edge has no yellow'); return [s, /middle row is all done/]; }
     assert.ok(options.length, 'stage 3: an edge is left but no picture describes it');
     return [s, pick(options)];
   },

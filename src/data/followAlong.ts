@@ -55,6 +55,7 @@ export interface Checkpoint {
   goal?: Picture; // a fixed goal picture; otherwise the simulated cube after the moves
   flat?: boolean; // draw that simulated cube as a flat top face (when only the top matters)
   alsoBelow?: boolean; // add a second view from underneath, so the bottom face can be checked too
+  caption?: string; // what the picture is, when it is an example rather than an exact match
   yes: { label: string; next: Target; effect?: Effect };
   notYet?: { label: string; next: Target; effect?: Effect };
 }
@@ -66,8 +67,9 @@ export type FlowNode =
   // "turn until it lines up". The picture shows the finished position (demoAfter), still, unless
   // showGoal is false (a single click of a layer, shown as an ordinary move). `flat` draws it as a flat top face.
   | (Base & { kind: 'adjust'; title: string; body?: string; move: MoveName; demo?: () => Demo; flat?: boolean; showGoal?: boolean; button: string; next: Target; demoAfter: (d: Demo) => Demo })
-  | (Base & { kind: 'sequence'; name: string; intro?: string; chunks: Chunk[]; demo?: () => Demo; onDone?: Effect; repeat?: CounterKey; reassure?: (c: Counters) => string | undefined; checkpoint: Checkpoint })
-  | (Base & { kind: 'finish'; title: string; body: string; picture: Picture });
+  // `alsoBelow` adds the view from underneath on the turn screens too (the check has its own flag).
+  | (Base & { kind: 'sequence'; name: string; intro?: string; chunks: Chunk[]; demo?: () => Demo; onDone?: Effect; repeat?: CounterKey; reassure?: (c: Counters) => string | undefined; alsoBelow?: boolean; checkpoint: Checkpoint })
+  | (Base & { kind: 'finish'; title: string; body: string; picture: Picture; caption?: string });
 
 // One line per stage: the whole method in seven sentences, plus the named set of turns it uses.
 export interface StageSummary { stage: number; rule: string; move?: { name: string; chant: string; notation: string; note?: string } }
@@ -88,7 +90,8 @@ const topView = (demo: () => Demo, marks: 'edges' | 'corners'): Picture => ({ ki
 
 // Yellow stays on top and white on the bottom for the whole solve: the cube is never flipped.
 const HOLD: Hold = 'yellow-top';
-const GREY_RULE = 'Dark grey stickers can be any color. Only check the colored ones.';
+// The line under a question that only says how to answer it (dropped on very short screens).
+export const TAP_HINT = 'Tap the picture like yours.';
 
 // ============================================================ Stage 1
 const s1 = (setup: string) => () => scenario(HOLD, () => false, setup, [['bottom', 0, 1], ['front', 2, 1]]);
@@ -101,30 +104,32 @@ const S1_CASES = {
   flipped: s1("F2 U' R' F R"),
   correct: s1(''),
 };
-const petals: CounterDisplay = { key: 'petals', label: 'White edges done', of: 4 };
+const whiteCrossDone = () => scenario(HOLD, (f, r, c) => (f === 'bottom' ? isEdgeSticker(r, c) : isSide(f) && r === 2 && c === 1));
+const petals: CounterDisplay = { key: 'petals', label: 'White edges placed', of: 4 };
 const afterPetal = (c: Counters) => ((c.petals ?? 0) >= 4 ? 's1-done' : 's1-where');
 const liftCheckpoint = (next = 's1-align'): Checkpoint => ({
   title: 'Your white edge should now be on TOP, white facing UP',
-  body: `The white sticker is on the top, next to the yellow center. ${GREY_RULE}`,
   yes: { label: 'Yes, it matches', next },
 });
 
 const stage1 = flow(1, 's1-where', [
   {
     kind: 'choice', id: 's1-where', hold: HOLD, step: 's1-where', counters: [petals],
-    title: 'Find a white EDGE piece (2 colors) that is not done. Tap the picture like yours.',
+    title: 'Find a white EDGE piece (2 colors) that is not done.',
+    body: TAP_HINT,
     options: [
       { label: 'Top: white facing UP', picture: cube(S1_CASES.petalUp), demo: S1_CASES.petalUp, next: 's1-align' },
       { label: 'Top: white sideways', picture: cube(S1_CASES.sideTop), demo: S1_CASES.sideTop, next: 's1-side-face' },
       { label: 'Middle row', picture: cube(S1_CASES.middleFacing), demo: S1_CASES.middleFacing, next: 's1-middle' },
       { label: 'Bottom: white DOWN, wrong place', picture: cube(S1_CASES.bottomDown, 'bottom'), demo: S1_CASES.bottomDown, next: 's1-bottom-face' },
       { label: 'Bottom: white sideways', picture: cube(S1_CASES.flipped), demo: S1_CASES.flipped, next: 's1-flipped-face' },
-      { label: 'Bottom: done, count it', picture: cube(S1_CASES.correct, 'bottom'), next: afterPetal, effect: { add: ['petals'] } },
+      // No counting by hand: the person says when the whole cross is there, and the finish screen shows it again.
+      { label: 'All 4 are done', picture: cube(whiteCrossDone, 'bottom'), next: 's1-done' },
     ],
     help: [
       'Hold your cube with the YELLOW center on top and the WHITE center on the bottom. Centers are the middle sticker of each side and never move.',
-      'An EDGE piece has 2 colors and sits between two corners. Find one that has a white sticker and is not finished yet.',
-      'Is it in the top row, the middle row or the bottom row? Then: which way does its white sticker face? Tap the picture that shows the same.',
+      'An EDGE piece has 2 colors and sits between two corners. Find one with a white sticker that is not finished. Finished means: on the bottom, white facing down, and its side color matching the center above it.',
+      'Is it in the top row, the middle row or the bottom row? Which way does its white sticker face? Tap the picture that shows the same. If all 4 are finished, tap "All 4 are done".',
     ],
   },
   // top row, white facing the side
@@ -153,13 +158,13 @@ const stage1 = flow(1, 's1-where', [
   { kind: 'info', id: 's1-flipped-face', hold: HOLD, step: 's1-where', counters: [petals], title: 'Turn your whole cube (yellow stays on top) so this edge is at the bottom, right in front of you.', body: 'Its white sticker should face you.', button: "It's in front of me", next: 's1-flipped-seq' },
   { kind: 'sequence', id: 's1-flipped-seq', hold: HOLD, step: 's1-where', counters: [petals], name: 'Flip it up', chunks: [chunk('Flip it up', "R' F' R")], checkpoint: liftCheckpoint() },
   // shared: line it up, face it, drop it
-  { kind: 'adjust', id: 's1-align', hold: HOLD, step: 's1-where', counters: [petals], move: 'U', title: "Turn the TOP layer until the white edge's side color sits above the center of the same color.", body: 'One click at a time. Only the top layer moves.', button: 'It matches now', next: 's1-face', demoAfter: (d) => turnUntil(d, 'U', petalMatched) },
+  { kind: 'adjust', id: 's1-align', hold: HOLD, step: 's1-where', counters: [petals], move: 'U', title: "Turn the TOP layer until the white edge's side color sits above the same-color center.", body: 'One click at a time. Only the top layer moves.', button: 'It matches now', next: 's1-face', demoAfter: (d) => turnUntil(d, 'U', petalMatched) },
   { kind: 'info', id: 's1-face', hold: HOLD, step: 's1-where', counters: [petals], title: 'Turn your whole cube (yellow stays on top) so that white edge is right in front of you.', body: 'Skip this if it already is.', button: "It's in front of me", next: 's1-drop', demoAfter: (d) => turnUntil(d, 'y', petalMatchedAtFront) },
   {
-    kind: 'sequence', id: 's1-drop', hold: HOLD, step: 's1-where', counters: [petals], view: 'bottom', name: 'Drop it in', chunks: [chunk('Drop it in', 'F2')],
-    checkpoint: { title: 'The white edge is now on the BOTTOM, white facing down', body: 'Seen from below. Its side color matches the center above it.', yes: { label: 'Yes, it matches', next: afterPetal, effect: { add: ['petals'] } } },
+    kind: 'sequence', id: 's1-drop', hold: HOLD, step: 's1-where', counters: [petals], alsoBelow: true, name: 'Drop it in', chunks: [chunk('Drop it in', 'F2')],
+    checkpoint: { title: 'The white edge is now on the BOTTOM, white facing down', body: 'Its side color matches the center above it.', alsoBelow: true, yes: { label: 'Yes, it matches', next: afterPetal, effect: { add: ['petals'] } } },
   },
-  { kind: 'finish', id: 's1-done', hold: HOLD, step: 's1-where', counters: [petals], view: 'bottom', title: 'White cross complete!', body: 'All 4 white edges are on the bottom, each matching the center above it.', picture: cube(() => scenario(HOLD, (f, r, c) => f === 'bottom' ? isEdgeSticker(r, c) : isSide(f) && r === 2 && c === 1), 'bottom') },
+  { kind: 'finish', id: 's1-done', hold: HOLD, step: 's1-where', counters: [petals], title: 'White cross complete!', body: 'All 4 white edges are on the bottom, each matching the center above it.', picture: cube(whiteCrossDone, 'bottom') },
 ]);
 
 // ============================================================ Stage 2
@@ -169,22 +174,24 @@ const SLEDGE = "R U R' U'";
 const s2Top = () => scenario(HOLD, whiteCross, `${inv(SLEDGE)} U`, FRB_TARGET);
 const s2Wrong = () => twistCorner(scenario(HOLD, whiteCross, '', FRB_TARGET), FRONT_RIGHT_BOTTOM, 1);
 const s2Goal = () => scenario(HOLD, whiteCross, '', FRB_TARGET);
-const corners: CounterDisplay = { key: 'corners', label: 'Corners done', of: 4 };
+const bottomLayerDone = () => scenario(HOLD, (f, r) => f === 'bottom' || (isSide(f) && r === 2));
+const corners: CounterDisplay = { key: 'corners', label: 'Corners placed', of: 4 };
 const afterCorner = (c: Counters) => ((c.corners ?? 0) >= 4 ? 's2-done' : 's2-where');
 
 const stage2 = flow(2, 's2-where', [
   {
     kind: 'choice', id: 's2-where', hold: HOLD, step: 's2-where', counters: [corners],
-    title: 'Find a white CORNER piece (3 colors) that is not done. Tap the picture like yours.',
+    title: 'Find a white CORNER piece (3 colors) that is not done.',
+    body: TAP_HINT,
     options: [
       { label: 'In the top row', picture: cube(s2Top), demo: s2Top, next: 's2-align' },
-      { label: 'In the bottom row, but wrong', picture: cube(s2Wrong), demo: s2Wrong, next: 's2-wrong-face' },
-      { label: 'Done, count it', detail: 'White down, sides match', picture: cube(s2Goal), next: afterCorner, effect: { add: ['corners'] } },
+      { label: 'In the bottom row, but wrong', detail: 'White not down, or a side color not matching', picture: cube(s2Wrong), demo: s2Wrong, next: 's2-wrong-face' },
+      { label: 'All 4 are done', detail: 'White down, sides match', picture: cube(bottomLayerDone, 'bottom'), next: 's2-done' },
     ],
     help: [
       'Hold yellow on top and white on the bottom. Your white cross is on the bottom.',
       'A CORNER piece has 3 colors. Look around the top row and the bottom row for a corner with a white sticker.',
-      'A corner is finished only when its white faces DOWN and its two side colors match the centers next to them. If it is not finished, is it in the top row or the bottom row?',
+      'A corner is finished only when its white faces DOWN and its two side colors match the centers next to them. If one is not finished, is it in the top row or the bottom row? If all 4 are finished, tap "All 4 are done".',
     ],
   },
   { kind: 'info', id: 's2-wrong-face', hold: HOLD, step: 's2-where', counters: [corners], title: 'Turn your whole cube (yellow stays on top) so that corner is at the FRONT-RIGHT, on the bottom.', button: "It's at the front-right", next: 's2-pop' },
@@ -198,10 +205,10 @@ const stage2 = flow(2, 's2-where', [
     checkpoint: {
       title: 'Is your corner done, like these pictures?', body: 'White down, both side colors matching. It takes 1, 3 or 5 goes.', goal: cube(s2Goal), alsoBelow: true,
       yes: { label: 'Yes, it matches', next: afterCorner, effect: { add: ['corners'], reset: ['repeats'] } },
-      notYet: { label: 'Not yet — do the 4 turns again', next: 's2-sledge' },
+      notYet: { label: 'Not yet — 4 turns again', next: 's2-sledge' },
     },
   },
-  { kind: 'finish', id: 's2-done', hold: HOLD, step: 's2-where', counters: [corners], view: 'bottom', title: 'Bottom layer complete!', body: 'The whole white face is done, and the bottom row of every side matches its center.', picture: cube(() => scenario(HOLD, (f, r) => f === 'bottom' || (isSide(f) && r === 2)), 'bottom') },
+  { kind: 'finish', id: 's2-done', hold: HOLD, step: 's2-where', counters: [corners], title: 'Bottom layer complete!', body: 'The whole white face is done, and the bottom row of every side matches its center.', picture: cube(bottomLayerDone, 'bottom') },
 ]);
 
 // ============================================================ Stage 3 (yellow still on top: edges go in from the top row)
@@ -214,12 +221,12 @@ const s3Right = () => scenario(HOLD, bottomLayer, inv(INSERT_RIGHT), FR_EDGE);
 const s3Left = () => scenario(HOLD, bottomLayer, inv(INSERT_LEFT), FL_EDGE);
 const s3Found = () => applyStep(s3Right(), 'U');
 const s3Stuck = () => flipEdge(scenario(HOLD, bottomLayer, '', FR_EDGE), FR_EDGE[0], FR_EDGE[1]);
-const s3Solved = () => scenario(HOLD, bottomLayer, '', FR_EDGE);
-const edges: CounterDisplay = { key: 'edges', label: 'Edges done', of: 4 };
+const twoLayersDone = () => scenario(HOLD, (f, r) => f === 'bottom' || (isSide(f) && r >= 1));
+const edges: CounterDisplay = { key: 'edges', label: 'Edges placed', of: 4 };
 const afterEdge = (c: Counters) => ((c.edges ?? 0) >= 4 ? 's3-done' : 's3-where');
 const RIGHT_CHUNKS = [chunk('Push it away', "U R U' R'"), chunk('Bring it home', "U' F' U F")];
 const LEFT_CHUNKS = [chunk('Push it away', "U' L' U L"), chunk('Bring it home', "U F U' F'")];
-const insertChecks: Checkpoint = { title: 'The edge is in the middle row, and the bottom is still all white', body: 'The small picture is your white bottom, seen from below.', alsoBelow: true, yes: { label: 'Yes, it matches', next: afterEdge, effect: { add: ['edges'] } } };
+const insertChecks: Checkpoint = { title: 'The edge is in the middle row, and the bottom is still all white', body: 'The second picture is your white bottom, seen from below.', alsoBelow: true, yes: { label: 'Yes, it matches', next: afterEdge, effect: { add: ['edges'] } } };
 
 const stage3 = flow(3, 's3-where', [
   {
@@ -227,13 +234,13 @@ const stage3 = flow(3, 's3-where', [
     title: 'In the TOP row, find an EDGE piece with NO yellow on it.',
     options: [
       { label: 'Found one', picture: cube(s3Found), demo: s3Found, next: 's3-align' },
-      { label: 'None: all 4 top edges have yellow', picture: cube(s3Stuck), demo: s3Stuck, next: 's3-stuck-face' },
-      { label: 'A middle edge is done, count it', picture: cube(s3Solved), next: afterEdge, effect: { add: ['edges'] } },
+      { label: 'None. A middle edge is still wrong', picture: cube(s3Stuck), demo: s3Stuck, next: 's3-stuck-face' },
+      { label: 'None. The middle row is all done', picture: cube(twoLayersDone), next: 's3-done' },
     ],
     help: [
       'Keep yellow on top and white on the bottom. The bottom row is finished. You are filling the 4 edges of the middle row.',
-      'Look at the 4 edge pieces in the TOP row (the ones touching the yellow center). Check both stickers of each one for yellow.',
-      'If one has no yellow, tap "Found one". If all 4 have yellow, a middle-row edge is in the wrong place: tap "None".',
+      'Look at the 4 edge pieces in the TOP row (the ones touching the yellow center). Check both stickers of each one for yellow. If one has no yellow, tap "Found one".',
+      'If all 4 have yellow, look at the middle row all the way round. Each middle edge should match the two centers beside it. One wrong: tap "A middle edge is still wrong". All 4 right: tap "The middle row is all done".',
     ],
   },
   { kind: 'info', id: 's3-stuck-face', hold: HOLD, step: 's3-where', counters: [edges], title: 'Turn your whole cube (yellow stays on top) so the stuck edge is in the middle row at the FRONT-RIGHT.', button: "It's at the front-right", next: 's3-pop' },
@@ -255,7 +262,7 @@ const stage3 = flow(3, 's3-where', [
   },
   { kind: 'sequence', id: 's3-right', hold: HOLD, step: 's3-where', counters: [edges], name: 'Insert right', intro: 'These 8 turns are called Insert right.', chunks: RIGHT_CHUNKS, checkpoint: insertChecks },
   { kind: 'sequence', id: 's3-left', hold: HOLD, step: 's3-where', counters: [edges], name: 'Insert left', intro: 'These 8 turns are called Insert left.', chunks: LEFT_CHUNKS, checkpoint: insertChecks },
-  { kind: 'finish', id: 's3-done', hold: HOLD, step: 's3-where', counters: [edges], title: 'Two layers complete!', body: 'The bottom row and the middle row are done. Only the yellow top is left.', picture: cube(() => scenario(HOLD, (f, r) => f === 'bottom' || (isSide(f) && r >= 1))) },
+  { kind: 'finish', id: 's3-done', hold: HOLD, step: 's3-where', counters: [edges], title: 'Two layers complete!', body: 'The bottom row and the middle row are done. Only the yellow top is left.', picture: cube(twoLayersDone) },
 ]);
 
 // ============================================================ Stage 4
@@ -282,11 +289,12 @@ const seq4 = (id: string, title: string, next: string): FlowNode => ({
 const stage4 = flow(4, 's4-pattern', [
   {
     kind: 'choice', id: 's4-pattern', hold: HOLD, step: 's4-pattern', counters: [times4],
-    title: 'Look down at the yellow top. Ignore the corners. Tap the picture like yours.',
+    title: 'Look down at the yellow top. Ignore the corners.',
+    body: TAP_HINT,
     options: [
       { label: 'Dot', picture: topFace(s4Dot), demo: s4Dot, next: 's4-dot' },
-      { label: 'L shape', picture: topFace(s4LGoal), demo: s4L, next: 's4-align-l' },
-      { label: 'Line', picture: topFace(s4LineGoal), demo: s4Line, next: 's4-align-line' },
+      { label: 'L shape', detail: 'turned any way', picture: topFace(s4LGoal), demo: s4L, next: 's4-align-l' },
+      { label: 'Line', detail: 'turned any way', picture: topFace(s4LineGoal), demo: s4Line, next: 's4-align-line' },
       { label: 'Cross', picture: topFace(s4Cross), demo: s4Cross, next: 's4-done' },
     ],
     help: [
@@ -316,7 +324,8 @@ const stage5 = flow(5, 's5-align', [
   { kind: 'adjust', id: 's5-align', hold: HOLD, step: 's5-align', counters: [times5], move: 'U', demo: s5Adjacent, title: 'Turn the TOP layer until 2 or more top edges sit above the center of the same color.', body: 'Try all 4 positions. One of them always works.', button: 'Done turning', next: 's5-count', demoAfter: maxMatchTurn },
   {
     kind: 'choice', id: 's5-count', hold: HOLD, step: 's5-align', counters: [times5],
-    title: 'Looking down at the top. A tick = that edge matches the center under it. Tap the picture like yours.',
+    title: 'How many top edges match the center under them?',
+    body: 'Looking down at the top. A tick marks a match. Tap the picture like yours.',
     options: [
       { label: 'All 4 match', picture: topView(() => scenario(HOLD, s5Rule), 'edges'), next: 's5-done' },
       { label: '2 match, side by side', picture: topView(() => maxMatchTurn(s5Adjacent()), 'edges'), next: 's5-face' },
@@ -339,6 +348,9 @@ const stage5 = flow(5, 's5-align', [
 const ALG6 = "U R U' L' U R' U' L";
 const s6One = () => applyStep(scenario(HOLD, showAll, inv(ALG6)), 'y');
 const s6None = () => scenario(HOLD, showAll, `${inv(ALG6)} y ${inv(ALG6)}`);
+// All 4 corners home, two of them still twisted: what a real cube usually looks like after this stage.
+const s6Home = () => twistCorner(twistCorner(scenario(HOLD, showAll), FRONT_RIGHT_TOP, 1), FRONT_LEFT_TOP, 2);
+const HOME_CAPTION = 'Example: 4 ticks = all 4 home';
 const times6: CounterDisplay = { key: 'times', label: 'Goes done', until: 'until all 4 corners are home' };
 const ALG6_CHUNKS = [chunk('First half', "U R U' L'"), chunk('Second half', "U R' U' L")];
 const ALG6_INTRO = 'These 8 turns are called the Corner swap.';
@@ -346,9 +358,10 @@ const ALG6_INTRO = 'These 8 turns are called the Corner swap.';
 const stage6 = flow(6, 's6-check', [
   {
     kind: 'choice', id: 's6-check', hold: HOLD, step: 's6-check', counters: [times6],
-    title: 'A corner is HOME when its 3 colors match the 3 centers around it (twisted is fine). A tick = home. Tap the picture like yours.',
+    title: 'How many top corners are HOME?',
+    body: 'HOME = its 3 colors are the 3 centers around it. Twisted is fine. A tick marks a home corner.',
     options: [
-      { label: 'All 4 are home', picture: topView(() => scenario(HOLD, showAll), 'corners'), next: 's6-done' },
+      { label: 'All 4 are home', picture: topView(s6Home, 'corners'), next: 's6-done' },
       { label: 'Only 1 is home', picture: topView(s6One, 'corners'), demo: s6One, next: 's6-face' },
       { label: 'None are home', picture: topView(s6None, 'corners'), demo: s6None, next: 's6-any' },
     ],
@@ -362,13 +375,13 @@ const stage6 = flow(6, 's6-check', [
   {
     kind: 'sequence', id: 's6-keep', hold: HOLD, step: 's6-check', counters: [times6], name: 'Corner swap', intro: `${ALG6_INTRO} Keep the home corner at the front-right.`, repeat: 'times', chunks: ALG6_CHUNKS, onDone: { add: ['times'] },
     checkpoint: {
-      title: 'Are all 4 top corners home now?', body: "Each corner's 3 colors are the same as the 3 centers around it (twisted is fine).", goal: topView(() => scenario(HOLD, showAll), 'corners'),
+      title: 'Are all 4 top corners home now?', body: "Each corner's 3 colors are the same as the 3 centers around it (twisted is fine).", goal: topView(s6Home, 'corners'), caption: HOME_CAPTION,
       yes: { label: 'Yes, all 4', next: 's6-done' },
-      notYet: { label: 'Not yet — do the 8 turns again', next: 's6-keep' },
+      notYet: { label: 'Not yet — 8 turns again', next: 's6-keep' },
     },
   },
   { kind: 'sequence', id: 's6-any', hold: HOLD, step: 's6-check', counters: [times6], name: 'Corner swap', intro: `${ALG6_INTRO} Do it once from any side.`, repeat: 'times', chunks: ALG6_CHUNKS, onDone: { add: ['times'] }, checkpoint: { title: 'Now check your corners again', body: 'One corner will be home now.', yes: { label: 'Check my corners', next: 's6-check' } } },
-  { kind: 'finish', id: 's6-done', hold: HOLD, step: 's6-check', counters: [times6], title: 'Corners are home!', body: 'All 4 top corners are in their own spots. Some may still be twisted. That is the last stage.', picture: cube(() => scenario(HOLD, showAll)) },
+  { kind: 'finish', id: 's6-done', hold: HOLD, step: 's6-check', counters: [times6], title: 'Corners are home!', body: 'All 4 top corners are in their own spots. Some may still be twisted, like in the picture.', picture: topView(s6Home, 'corners'), caption: HOME_CAPTION },
 ]);
 
 // ============================================================ Stage 7 (yellow still on top: twist each top corner at the front-right)
@@ -382,14 +395,15 @@ const MIXED = "The bottom looks mixed up? That's normal. Keep going. It fixes it
 const stage7 = flow(7, 's7-start', [
   {
     kind: 'choice', id: 's7-start', hold: HOLD, step: 's7-start', counters: [twisted],
-    title: 'Turn ONLY the top layer until a corner with NO yellow on top is at the FRONT-RIGHT. Do not turn your whole cube any more.',
+    title: 'Turn ONLY the top layer until a corner with NO yellow on top is at the FRONT-RIGHT.',
+    body: 'From here on, never turn your whole cube.',
     options: [
       { label: "Done: it's at the front-right", picture: cube(s7Start), next: 's7-twist' },
       { label: 'All 4 corners already have yellow on top', picture: cube(() => scenario(HOLD, showAll)), next: 's7-final' },
     ],
     help: [
       'Hold yellow on top. Pick a side to face you and keep it facing you for this whole stage.',
-      'Look at the 4 corners of the yellow top. Is every corner sticker on top yellow? If yes, tap "Every top corner already has yellow facing up".',
+      'Look at the 4 corners of the yellow top. Is every corner sticker on top yellow? If yes, tap "All 4 corners already have yellow on top".',
       'If not, turn only the TOP layer until one of the corners that is not yellow on top sits at the front-right.',
     ],
   },
@@ -399,9 +413,9 @@ const stage7 = flow(7, 's7-start', [
     chunks: [chunk('Corner twist', TWIST)], onDone: { add: ['repeats'] },
     reassure: (c) => ((c.repeats ?? 0) >= 1 ? MIXED : undefined),
     checkpoint: {
-      title: "Is the FRONT-RIGHT top corner's yellow facing UP now?", body: 'Only this corner matters. The rest looks mixed up. That is normal. It takes 2 or 4 goes.', goal: cube(s7Goal),
+      title: "Is the FRONT-RIGHT top corner's yellow facing UP now?", body: 'Only this corner matters. The rest looks mixed up: that is normal. It takes 2 or 4 goes.', goal: cube(s7Goal),
       yes: { label: 'Yes, yellow faces up', next: afterTwist, effect: { add: ['twisted'], reset: ['repeats'] } },
-      notYet: { label: 'Not yet — do the 4 turns again', next: 's7-twist' },
+      notYet: { label: 'Not yet — 4 turns again', next: 's7-twist' },
     },
   },
   { kind: 'adjust', id: 's7-next', hold: HOLD, step: 's7-next', counters: [twisted], move: 'U', showGoal: false, title: 'Turn ONLY the TOP layer one click to bring the next corner to the front-right.', body: 'Do not turn your whole cube, and do not fix the bottom. It will sort itself out.', button: 'Done', next: 's7-next-check', demoAfter: (d) => applyStep(d, 'U') },
@@ -418,8 +432,8 @@ const stage7 = flow(7, 's7-start', [
       'Is that top sticker yellow? Yes = skip it. No = fix it.',
     ],
   },
-  { kind: 'adjust', id: 's7-final', hold: HOLD, step: 's7-final', counters: [twisted], move: 'U', title: 'Turn the TOP layer until every side is one color.', button: "It's solved!", next: 's7-done', demoAfter: (d) => turnUntil(d, 'U', sidesAligned) },
-  { kind: 'finish', id: 's7-done', hold: HOLD, step: 's7-final', counters: [twisted], title: "You solved the Rubik's Cube!", body: 'Every side is one color. Congratulations!', picture: cube(() => scenario(HOLD, showAll)) },
+  { kind: 'adjust', id: 's7-final', hold: HOLD, step: 's7-final', counters: [twisted], move: 'U', title: 'Turn the TOP layer until every side is one color.', body: 'Not working? If a top corner still has no yellow on top, tap "I messed up" and restart this stage.', button: "It's solved!", next: 's7-done', demoAfter: (d) => turnUntil(d, 'U', sidesAligned) },
+  { kind: 'finish', id: 's7-done', hold: HOLD, step: 's7-final', counters: [twisted], title: "You solved the Rubik's Cube!", body: 'All six sides, top to bottom. If yes: you solved it!', picture: cube(() => scenario(HOLD, showAll)) },
 ]);
 
 export const FOLLOW_ALONG: Record<number, StageFlow> = { 1: stage1, 2: stage2, 3: stage3, 4: stage4, 5: stage5, 6: stage6, 7: stage7 };
@@ -440,6 +454,12 @@ export const CHEAT_SHEET: StageSummary[] = [
 ];
 
 export const resolveTarget = (t: Target, c: Counters) => (typeof t === 'function' ? t(c) : t);
+
+// What the cube looks like when a stage is finished (shown on the stage's card before it is opened).
+export const finishPicture = (stageId: number): Picture => {
+  const done = Object.values(FOLLOW_ALONG[stageId].nodes).find((n) => n.kind === 'finish');
+  return (done as Extract<FlowNode, { kind: 'finish' }>).picture;
+};
 
 export const sequenceMoves = (node: Extract<FlowNode, { kind: 'sequence' }>) => node.chunks.flatMap((ch) => ch.moves);
 

@@ -59,8 +59,8 @@ describe('every set of turns the guide teaches, from the case it is taught for',
       const d = finish(run(option(1, 's1-middle', label), 1, id));
       row(`${turns(1, id)}, then line up + F2`, name, promise, `bottom-front sticker W, side matches center: ${d.colors.front[2][1] === d.colors.front[1][1]}`, placed(d));
     }
-    const done = (node(1, 's1-where') as Choice).options.find((o) => /done, count it/.test(o.label))!;
-    row('(no turns)', 'bottom, already right', 'counted, nothing moves', `counter +1, no turns: ${JSON.stringify(done.effect)}`, JSON.stringify(done.effect) === '{"add":["petals"]}');
+    const done = (node(1, 's1-where') as Choice).options.find((o) => /^All 4 are done/.test(o.label))!;
+    row('(no turns)', 'all 4 already right', 'straight to the finish picture, nothing counted by hand', `next: ${String(done.next)}, effect: ${JSON.stringify(done.effect ?? null)}`, done.next === 's1-done' && !done.effect);
   });
 
   test('Stage 2: Sledgehammer, 1 / 3 / 5 goes', () => {
@@ -84,8 +84,8 @@ describe('every set of turns the guide teaches, from the case it is taught for',
     let goes = 0;
     while (!(d.colors.bottom[0][2] === W && d.colors.front[2][2] === cen(d.colors, 'front') && d.colors.right[2][0] === cen(d.colors, 'right'))) { d = run(d, 2, 's2-sledge'); goes++; assert.ok(goes <= 5); }
     row(`${turns(2, 's2-pop')} (pop), line up, Sledgehammer x${goes}`, 'corner in the bottom row, twisted', 'popped to the top row, then home; rest of the bottom layer untouched', `bottom ${face(d.colors.bottom)}, bottom rows match: ${rows(d.colors, 2)}`, inTop && firstLayer(d.colors));
-    const done = (node(2, 's2-where') as Choice).options.find((o) => /Done, count it/.test(o.label))!;
-    row('(no turns)', 'corner already right', 'counted, nothing moves', `counter +1: ${JSON.stringify(done.effect)}`, JSON.stringify(done.effect) === '{"add":["corners"]}');
+    const done = (node(2, 's2-where') as Choice).options.find((o) => /^All 4 are done/.test(o.label))!;
+    row('(no turns)', 'all 4 corners already right', 'straight to the finish picture, nothing counted by hand', `next: ${String(done.next)}, effect: ${JSON.stringify(done.effect ?? null)}`, done.next === 's2-done' && !done.effect);
   });
 
   test('Stage 3: Insert right, Insert left, and the stuck-edge pop', () => {
@@ -96,7 +96,7 @@ describe('every set of turns the guide teaches, from the case it is taught for',
       console.log(`  ${name} AFTER   bottom ${face(d.colors.bottom)} | front ${face(d.colors.front)} | ${id === 's3-left' ? 'left ' + face(d.colors.left) : 'right ' + face(d.colors.right)} | top ${face(d.colors.top)}`);
       row(turns(3, id), `top edge lined up, goes ${id === 's3-left' ? 'left' : 'right'}`, `edge in the front-${id === 's3-left' ? 'left' : 'right'} middle spot; white bottom layer untouched`, `bottom ${face(d.colors.bottom)}, edge home: ${home(d.colors)}, bottom rows match: ${rows(d.colors, 2)}`, home(d.colors) && firstLayer(d.colors) && whiteFace(before.colors));
     }
-    const stuck = option(3, 's3-where', /^None/);
+    const stuck = option(3, 's3-where', /^None\. A middle edge/);
     const d = run(after(stuck, 3, 's3-stuck-face'), 3, 's3-pop');
     const edgeUp = [[d.colors.top[2][1], d.colors.front[0][1]], [d.colors.top[1][2], d.colors.right[0][1]], [d.colors.top[0][1], d.colors.back[0][1]], [d.colors.top[1][0], d.colors.left[0][1]]].some(([a, b]) => a !== Y && b !== Y);
     row(`${turns(3, 's3-pop')} (pop)`, 'no top edge without yellow: an edge is stuck in the middle row', 'the stuck edge comes up to the top row; white bottom layer untouched', `edge without yellow now on top: ${edgeUp}, bottom ${face(d.colors.bottom)}`, edgeUp && firstLayer(d.colors));

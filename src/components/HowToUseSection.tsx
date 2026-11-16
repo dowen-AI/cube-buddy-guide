@@ -3,18 +3,18 @@ import { BookOpen, RotateCcw, CheckCircle2, Lightbulb } from 'lucide-react';
 const tips = [
   {
     icon: BookOpen,
-    title: "1. Hold your cube like the picture",
-    description: "Yellow on top, white on the bottom, for the whole solve. You never flip the cube over."
+    title: "1. Hold the yellow center on top",
+    description: "Find the yellow square in the middle of a side and put it on top. The white middle square is then on the bottom. Keep it that way for the whole solve: you never flip the cube over."
   },
   {
     icon: RotateCcw,
     title: "2. Do one turn, then tap",
-    description: "The screen shows a single turn: a 3D cube with a big arrow, with that layer turning on screen unless your device has motion switched off. Do it on your cube, then tap \"I did it\"."
+    description: "The screen shows a single turn on a 3D cube, with a big arrow for which way to go. Do it on your cube, then tap \"I did it\"."
   },
   {
     icon: Lightbulb,
     title: "3. Wrong turn? Tap \"I messed up\"",
-    description: "The guide walks your real cube back, one turn at a time. You never have to start a stage over for one mistake."
+    description: "The guide walks your real cube back, one turn at a time. Badly mixed up? Stage 1 works from any cube, and the solver can finish any cube."
   },
   {
     icon: CheckCircle2,

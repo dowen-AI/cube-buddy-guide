@@ -1,6 +1,7 @@
 import { CUBE_COLORS, type CubeState } from '@/hooks/useCubeState';
 import { ANY_COLOR, stickerIndex, type Face } from '@/lib/cubeGeometry';
 import { TOP_CORNERS, cornerInSpot, edgeMatches, yellowTopEdges, type Demo } from '@/lib/cubeDemo';
+import type { Picture } from '@/data/followAlong';
 
 const GREY = ANY_COLOR;
 const COS30 = Math.cos(Math.PI / 6);
@@ -9,7 +10,11 @@ type P3 = [number, number, number];
 
 // Flat isometric drawing of the three faces visible from the front-right,
 // either from above (top, front, right) or from below (bottom, front, right).
-export const CubePicture = ({ demo, colors, view = 'top', size = 72, title }: { demo?: Demo; colors?: CubeState; view?: 'top' | 'bottom'; size?: number; title?: string }) => {
+// `fit` makes a picture fill its box (keeping its shape) instead of using a fixed pixel size.
+const sizing = (size: number, ratio: number, fit?: boolean) =>
+  fit ? { className: 'h-full w-full' } : { width: size, height: size * ratio, style: { maxWidth: '100%', height: 'auto' } as const };
+
+export const CubePicture = ({ demo, colors, view = 'top', size = 72, title, fit }: { demo?: Demo; colors?: CubeState; view?: 'top' | 'bottom'; size?: number; title?: string; fit?: boolean }) => {
   const state = demo?.colors ?? colors!;
   const project = ([x, y, z]: P3): [number, number] => {
     const sx = (x - z) * COS30;
@@ -41,8 +46,10 @@ export const CubePicture = ({ demo, colors, view = 'top', size = 72, title }: { 
         : [[-e, face === 'top' ? e : -e, -e], [e, face === 'top' ? e : -e, -e], [e, face === 'top' ? e : -e, e], [-e, face === 'top' ? e : -e, e]];
     return c.map((p) => project(p).map((v) => v.toFixed(3)).join(',')).join(' ');
   });
+  // The drawing is 5.2 wide and 6 tall (a hexagon standing on a point), plus the outline.
+  const BOX_W = 5.4, BOX_H = 6.2;
   return (
-    <svg viewBox="-2.75 -2.75 5.5 5.5" width={size} height={size} role="img" aria-label={title ?? 'Cube picture'}>
+    <svg viewBox={`${-BOX_W / 2} ${-BOX_H / 2} ${BOX_W} ${BOX_H}`} {...sizing(size, BOX_H / BOX_W, fit)} role="img" aria-label={title ?? (view === 'bottom' ? 'Cube picture, seen from below' : 'Cube picture')}>
       {outline.map((pts, i) => <polygon key={i} points={pts} fill={CUBE_COLORS.black} stroke={CUBE_COLORS.black} strokeWidth={0.12} strokeLinejoin="round" />)}
       {polys.map((p, i) => <polygon key={i} points={p.pts} fill={p.fill} />)}
     </svg>
@@ -57,20 +64,20 @@ export const topShapeName = (s: CubeState) => {
   const n = [f, r, b, l].filter(Boolean).length;
   return n === 0 ? 'dot' : n === 4 ? 'cross' : n === 2 ? ((f && b) || (l && r) ? 'line' : 'L shape') : `${n} yellow edges`;
 };
-export const TopFacePicture = ({ demo, size = 72 }: { demo: Demo; size?: number }) => {
+export const TopFacePicture = ({ demo, size = 72, fit }: { demo: Demo; size?: number; fit?: boolean }) => {
   // yellow edges and the center; corners are never part of the shape
   const cell = (r: number, c: number) => (demo.colors.top[r][c] === CUBE_COLORS.yellow && (r + c) % 2 === 1 || (r === 1 && c === 1) ? CUBE_COLORS.yellow : GREY);
   // The caption must stay readable (14px or more) at any picture size.
+  // (In `fit` mode the screen writes the caption itself, under the picture.)
   const font = Math.max(3.6, (14 / size) * 34);
-  const caption = size >= 130 ? 'FRONT (toward you)' : '▼ YOU';
-  const h = 34 + font + 1.5;
+  const h = fit ? 34 : 34 + font + 1.5;
   return (
-    <svg viewBox={`0 0 34 ${h}`} width={size} height={size * (h / 34)} role="img" aria-label={`Top view: ${topShapeName(demo.colors)}`}>
+    <svg viewBox={`0 0 34 ${h}`} {...sizing(size, h / 34, fit)} role="img" aria-label={`Top view: ${topShapeName(demo.colors)}`}>
       <rect x="0" y="0" width="34" height="34" rx="3" fill={CUBE_COLORS.black} />
       {[0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => (
         <rect key={`${r}${c}`} x={1.5 + c * 10.5} y={1.5 + r * 10.5} width="10" height="10" rx="1.5" fill={cell(r, c)} data-cell={`${r}${c}`} data-yellow={cell(r, c) === CUBE_COLORS.yellow || undefined} />
       )))}
-      <text x="17" y={34 + font} textAnchor="middle" fontSize={font} fontWeight="600" fill="currentColor">{caption}</text>
+      {fit ? null : <text x="17" y={34 + font} textAnchor="middle" fontSize={font} fontWeight="600" fill="currentColor">▼ YOU</text>}
     </svg>
   );
 };
@@ -78,7 +85,7 @@ export const TopFacePicture = ({ demo, size = 72 }: { demo: Demo; size?: number 
 // Looking straight down at the top face, with the top row of each side folded
 // out around it and that side's center beyond. Ticks mark what already matches,
 // so the person compares pictures instead of counting.
-export const TopDownPicture = ({ demo, marks, size = 72 }: { demo: Demo; marks: 'edges' | 'corners'; size?: number }) => {
+export const TopDownPicture = ({ demo, marks, size = 72, fit }: { demo: Demo; marks: 'edges' | 'corners'; size?: number; fit?: boolean }) => {
   const s = demo.colors;
   const col = (f: Face, r: number, c: number) => (demo.vis[f][r][c] === '1' ? s[f][r][c] : GREY);
   const cells: { x: number; y: number; fill: string; small?: boolean }[] = [];
@@ -101,9 +108,9 @@ export const TopDownPicture = ({ demo, marks, size = 72 }: { demo: Demo; marks: 
   }
   const U = 10;
   const font = Math.max(4, (14 / size) * 70);
-  const h = 70 + font + 2;
+  const h = fit ? 70 : 70 + font + 2;
   return (
-    <svg viewBox={`0 0 70 ${h}`} width={size} height={size * (h / 70)} role="img" aria-label={`Looking down at the top: ${ticks.length} ${marks === 'edges' ? 'edges match' : 'corners are home'}`}>
+    <svg viewBox={`0 0 70 ${h}`} {...sizing(size, h / 70, fit)} role="img" aria-label={`Looking down at the top: ${ticks.length} ${marks === 'edges' ? 'edges match' : 'corners are home'}`}>
       <rect x={U * 2 - 1} y={U * 2 - 1} width={U * 3 + 2} height={U * 3 + 2} rx="2" fill={CUBE_COLORS.black} />
       {cells.map((c, i) => c.small
         ? <circle key={i} cx={c.x * U + U / 2} cy={c.y * U + U / 2} r={U * 0.36} fill={c.fill} stroke={CUBE_COLORS.black} strokeWidth="0.8" />
@@ -114,7 +121,7 @@ export const TopDownPicture = ({ demo, marks, size = 72 }: { demo: Demo; marks: 
           <path d={`M ${x * U + 2.9} ${y * U + 5.2} l 1.6 1.7 l 3 -3.6`} fill="none" stroke="#fff" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </g>
       ))}
-      <text x="35" y={70 + font} textAnchor="middle" fontSize={font} fontWeight="600" fill="currentColor">▼ YOU</text>
+      {fit ? null : <text x="35" y={70 + font} textAnchor="middle" fontSize={font} fontWeight="600" fill="currentColor">▼ YOU</text>}
     </svg>
   );
 };
@@ -145,3 +152,14 @@ export const PieceTypes = () => {
     </div>
   );
 };
+
+// A cube drawn from underneath has to say so.
+export const isFromBelow = (picture: Picture) => picture.kind === 'cube' && picture.view === 'bottom';
+export const FromBelowNote = ({ picture }: { picture: Picture }) =>
+  isFromBelow(picture) ? <span className="block text-center text-sm font-medium leading-tight text-muted-foreground" data-testid="from-below">from below</span> : null;
+
+// Any picture the guide's data can describe, at a fixed size or filling its box.
+export const PictureView = ({ picture, size = 72, fit }: { picture: Picture; size?: number; fit?: boolean }) =>
+  picture.kind === 'topface' ? <TopFacePicture demo={picture.demo()} size={size} fit={fit} />
+    : picture.kind === 'top' ? <TopDownPicture demo={picture.demo()} marks={picture.marks} size={size} fit={fit} />
+      : <CubePicture demo={picture.demo()} view={picture.view} size={size} fit={fit} />;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { toast } from 'sonner';
 import { useProgress } from '@/hooks/useProgress';
@@ -18,7 +18,7 @@ import { interactiveStagesData } from '@/data/interactiveStagesData';
 const Index = () => {
   const {
     progress,
-    toggleStage,
+    markComplete,
     resetProgress,
     completedCount,
     totalStages,
@@ -33,15 +33,51 @@ const Index = () => {
   // While the solver's one-move-at-a-time player is on screen the header shrinks too.
   const [solverPlaying, setSolverPlaying] = useState(false);
 
+  // What to bring into view once the open guide has closed: that stage's card, or the solver.
+  const afterClose = useRef<{ stage: number | null; solver: boolean }>({ stage: null, solver: false });
+
   // Opening a guide collapses any guide above it, which shifts the page;
   // re-anchor on the newly opened card once the layout has settled.
+  // Closing one lands on its card, with the next stage just below.
   useEffect(() => {
-    if (openStageId === null) return;
+    let target: string | null = null;
+    let smooth = false;
+    if (openStageId !== null) {
+      afterClose.current.stage = openStageId;
+      target = `stage-${openStageId}`;
+      smooth = true;
+    } else {
+      const { stage, solver } = afterClose.current;
+      afterClose.current = { stage: null, solver: false };
+      target = solver ? 'solver' : stage !== null ? `stage-${stage}` : null;
+    }
+    if (!target) return;
+    const id = target;
     const frame = requestAnimationFrame(() =>
-      document.getElementById(`stage-${openStageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById(id)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
     );
     return () => cancelAnimationFrame(frame);
   }, [openStageId]);
+
+  // On a phone the open guide is a full-screen sheet. While it is open the page
+  // behind it does not scroll, and the phone's Back button closes the guide
+  // instead of leaving the site.
+  const guideOpen = openStageId !== null;
+  useEffect(() => {
+    if (!guideOpen) return;
+    document.documentElement.classList.add('guide-open');
+    const state = window.history.state ?? {};
+    // one extra history entry per visit at most: it is reused the next time a guide opens
+    if (state.cubeGuide) window.history.replaceState({ ...state, cubeGuide: 'open' }, '');
+    else window.history.pushState({ ...state, cubeGuide: 'open' }, '');
+    const onPop = () => setOpenStageId(null);
+    window.addEventListener('popstate', onPop);
+    return () => {
+      document.documentElement.classList.remove('guide-open');
+      window.removeEventListener('popstate', onPop);
+      if (window.history.state?.cubeGuide === 'open') window.history.replaceState({ ...window.history.state, cubeGuide: 'closed' }, '');
+    };
+  }, [guideOpen]);
 
   // Track active stage on scroll
   useEffect(() => {
@@ -66,12 +102,27 @@ const Index = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Show celebration when all stages complete
+  // Celebrate at the moment the last stage is finished (not on every later visit).
+  const previousCount = useRef(completedCount);
   useEffect(() => {
-    if (completedCount === totalStages) {
-      setShowCelebration(true);
-    }
+    if (completedCount === totalStages && previousCount.current < totalStages) setShowCelebration(true);
+    previousCount.current = completedCount;
   }, [completedCount, totalStages]);
+
+  // "Mine matches" on a finish screen: the stage is done. Matching the last one
+  // means the cube is solved, so every stage counts as done, whichever were opened.
+  const stageMatched = (stageId: number) => {
+    if (stageId >= totalStages) interactiveStagesData.forEach((stage) => markComplete(stage.id));
+    else markComplete(stageId);
+  };
+  // ...and on: straight into the next stage's guide, or (after the last) back to the page.
+  const nextStage = (stageId: number) => setOpenStageId(stageId >= totalStages ? null : stageId + 1);
+
+  // A stuck beginner can always fall back on the solver.
+  const openSolverFromGuide = () => {
+    afterClose.current.solver = true;
+    setOpenStageId(null);
+  };
 
   const handleStageClick = (stageId: number) => {
     // Mid-guide, jumping to another stage would pull the beginner away from the
@@ -143,10 +194,15 @@ const Index = () => {
                 key={`${stage.id}-${resetKey}`}
                 stage={stage}
                 isComplete={progress[stage.id] || false}
-                onToggleComplete={() => toggleStage(stage.id)}
+                isLast={stage.id === totalStages}
                 isOpen={openStageId === stage.id}
                 onOpen={() => setOpenStageId(stage.id)}
                 onClose={() => setOpenStageId(null)}
+                nextTitle={interactiveStagesData.find((next) => next.id === stage.id + 1)?.title}
+                onMatched={() => stageMatched(stage.id)}
+                onNext={() => nextStage(stage.id)}
+                onStartOver={stage.id > 1 ? () => setOpenStageId(1) : undefined}
+                onOpenSolver={openSolverFromGuide}
               />
             ))}
           </div>
