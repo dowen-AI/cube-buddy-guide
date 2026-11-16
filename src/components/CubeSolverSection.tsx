@@ -133,7 +133,7 @@ export const CubeSolverSection = ({ onPlayingChange }: CubeSolverSectionProps) =
   const review = s.reviewing !== null ? PAINT_STEPS[s.reviewing] : null;
 
   return (
-    <section id="solver" className="scroll-mt-16 border-y border-border bg-muted/30 px-4 py-16 print:hidden">
+    <section id="solver" className="scroll-mt-28 border-y border-border bg-muted/30 px-4 py-16 min-[1440px]:scroll-mt-8 print:hidden">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
           <h2 className="mb-3 font-display text-3xl font-bold text-foreground">Just Want the Solution?</h2>

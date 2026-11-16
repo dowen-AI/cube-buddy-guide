@@ -27,9 +27,9 @@ export const CelebrationModal = ({ isOpen, onClose, onReset }: CelebrationModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3" role="dialog" aria-modal="true" aria-label="You solved the cube">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-foreground/50 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -49,57 +49,56 @@ export const CelebrationModal = ({ isOpen, onClose, onReset }: CelebrationModalP
         />
       ))}
 
-      {/* Modal */}
-      <div className="relative bg-card rounded-2xl border border-border shadow-card max-w-lg w-full p-8 text-center animate-fade-in">
+      {/* Never taller than the screen: it scrolls inside if it has to, so the buttons can always be reached. */}
+      <div className="relative max-h-full w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-5 text-center shadow-card animate-fade-in sm:p-8" data-testid="celebration">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-muted rounded-lg transition-colors"
+          aria-label="Close"
+          className="absolute right-1 top-1 flex h-14 w-14 items-center justify-center rounded-lg transition-colors hover:bg-muted"
         >
-          <X className="w-5 h-5 text-muted-foreground" />
+          <X className="h-6 w-6 text-muted-foreground" />
         </button>
 
         {/* Trophy */}
-        <div className="w-20 h-20 bg-cube-yellow/20 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Trophy className="w-10 h-10 text-cube-yellow" />
+        <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-cube-yellow/20 sm:mb-6 sm:h-20 sm:w-20">
+          <Trophy className="h-7 w-7 text-cube-yellow sm:h-10 sm:w-10" />
         </div>
 
         {/* Title */}
-        <h2 className="text-3xl font-bold font-display text-foreground mb-2">
-          🎉 Congratulations! 🎉
+        <h2 className="mb-2 font-display text-2xl font-bold text-foreground sm:text-3xl">
+          🎉 You solved it! 🎉
         </h2>
-        <p className="text-lg text-muted-foreground mb-6">
-          You've completed all 7 stages of the Rubik's Cube guide!
+        <p className="mb-4 text-lg text-muted-foreground">
+          All 7 stages done. That is a solved Rubik's Cube.
         </p>
 
         {/* Solved Cube */}
-        <div className="bg-muted/50 rounded-xl p-4 mb-6">
-          <RubiksCube3D cubeState={cubeStates.solved} autoRotate={true} />
-          <p className="text-sm text-muted-foreground mt-2">
-            Your solved cube! 🧊
-          </p>
+        <div className="mb-4 rounded-xl bg-muted/50 p-2 sm:p-4">
+          <RubiksCube3D cubeState={cubeStates.solved} autoRotate={true} className="!h-36 sm:!h-56" />
         </div>
 
         {/* Message */}
-        <p className="text-foreground mb-6">
-          You now know the Layer-by-Layer method! Scramble it and go again while it's fresh:
-          the second solve is where it sticks. The one-page cheat sheet is at the bottom of this page.
-          Most beginners can solve it in under 5 minutes with practice.
+        <p className="mb-5 text-base text-foreground">
+          Scramble it and go again while it's fresh: the second solve is where it sticks, and
+          each one is faster. The one-page cheat sheet is at the bottom of this page.
         </p>
 
         {/* Actions */}
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={onReset}
-            className="flex items-center gap-2 px-6 py-3 bg-muted text-foreground rounded-xl font-semibold hover:bg-muted/80 transition-colors"
-          >
-            <RefreshCw className="w-5 h-5" />
-            Start Over
-          </button>
+        <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-center">
           <button
             onClick={onClose}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-colors"
+            className="min-h-14 rounded-xl bg-primary px-6 text-lg font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            data-testid="celebration-close"
           >
-            Close
+            Done
+          </button>
+          <button
+            onClick={onReset}
+            className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-muted px-6 text-base font-semibold text-foreground transition-colors hover:bg-muted/80"
+            data-testid="celebration-again"
+          >
+            <RefreshCw className="h-5 w-5" />
+            Solve it again from Stage 1
           </button>
         </div>
       </div>

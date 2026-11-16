@@ -10,7 +10,8 @@ export const HeroSection = ({ onStart }: { onStart: () => void }) => {
       <div className="max-w-4xl mx-auto text-center">
         {/* 3D Cube */}
         <div className="mb-4">
-          <RubiksCube3D cubeState={cubeStates.scrambled} autoRotate={true} />
+          {/* smaller on phones, so both ways in are on the first screen */}
+          <RubiksCube3D cubeState={cubeStates.scrambled} autoRotate={true} className="!h-44 sm:!h-64 md:!h-80" />
         </div>
 
         {/* Title */}
@@ -35,12 +36,12 @@ export const HeroSection = ({ onStart }: { onStart: () => void }) => {
           >
             Just solve my cube for me
           </button>
-          <p className="text-base text-muted-foreground">Grab your cube. One turn at a time, each shown on a 3D cube with a big arrow.</p>
+          <p className="text-base text-muted-foreground">Grab your cube and hold it with the <strong className="text-foreground">yellow center square on top</strong>. That is all you need to know to start.</p>
         </div>
 
         {/* Subtitle */}
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          Hold your cube, follow one turn at a time, and tap when you've done it.
+          Follow one turn at a time, each shown on a 3D cube with a big arrow, and tap when you've done it.
           Plain English, no memorizing up front. If you make a wrong turn, the guide walks you back.
         </p>
 

@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { CUBE_COLORS as C, type CubeState } from '../src/hooks/useCubeState';
-import { FOLLOW_ALONG, ALGORITHMS, CHEAT_SHEET, resolveTarget, sequenceMoves, type FlowNode, type Picture } from '../src/data/followAlong';
+import { FOLLOW_ALONG, ALGORITHMS, CHEAT_SHEET, finishPicture, resolveTarget, sequenceMoves, type FlowNode, type Picture } from '../src/data/followAlong';
 import {
   applyMoves, applyStep, scenario, showAll, twistCorner, cornersInSpot, edgeMatches, matchCount, maxMatchTurn,
   yellowTopEdges, sidesAligned, yellowUpAtFrontRight, FRONT_RIGHT_TOP, FRONT_LEFT_TOP, type Demo,
@@ -88,11 +88,12 @@ describe('stage 1: every white-edge picture ends with the edge placed', () => {
     finish(d);
   });
   for (const [label, id] of middle) test(`Middle row, ${label}`, () => finish(runSeq(optionDemo(1, 's1-middle', label), node(1, id))));
-  test('the sixth picture ("already right") counts the edge without any turns', () => {
+  test('the sixth picture ("All 4 are done") goes straight to the finish picture: nothing is counted by hand', () => {
     const n = node(1, 's1-where');
     assert.equal(n.kind, 'choice');
-    const opt = (n as Extract<FlowNode, { kind: 'choice' }>).options.find((o) => /done, count it/.test(o.label))!;
-    assert.deepEqual(opt.effect, { add: ['petals'] });
+    const opt = (n as Extract<FlowNode, { kind: 'choice' }>).options.find((o) => /^All 4 are done/.test(o.label))!;
+    assert.equal(opt.next, 's1-done');
+    assert.equal(opt.effect, undefined);
   });
 });
 
@@ -118,7 +119,7 @@ describe('the turns changed in this build, shown before and after (yellow on top
     assert.ok(afterD.colors.bottom.flat().every((x) => x === W));
   });
   test('Stage 3: a stuck middle edge pops up to the top row', () => {
-    const d = runSeq(optionDemo(3, 's3-where', /^None/), node(3, 's3-pop'));
+    const d = runSeq(optionDemo(3, 's3-where', /^None\. A middle edge/), node(3, 's3-pop'));
     const tops: [string, string][] = [[d.colors.top[2][1], d.colors.front[0][1]], [d.colors.top[1][2], d.colors.right[0][1]], [d.colors.top[0][1], d.colors.back[0][1]], [d.colors.top[1][0], d.colors.left[0][1]]];
     assert.ok(tops.some(([a, b]) => a !== Y && b !== Y), 'an edge without yellow is now in the top row');
   });
@@ -295,5 +296,58 @@ describe('plain-language rules of the guide', () => {
       while (flow.nodes[id].kind === 'info') { id = resolveTarget((flow.nodes[id] as Extract<FlowNode, { kind: 'info' }>).next, {}); taps++; }
       if (flow.nodes[id].kind === 'sequence' || flow.nodes[id].kind === 'adjust') assert.ok(taps <= 3, `${o.label}: ${taps} taps`);
     }
+  });
+});
+
+describe('finishing a stage is a look at the cube, never a count', () => {
+  type Choice = Extract<FlowNode, { kind: 'choice' }>;
+  type Finish = Extract<FlowNode, { kind: 'finish' }>;
+  test('no picture question adds to a "pieces placed" counter by hand (a beginner would double-count)', () => {
+    for (const flow of Object.values(FOLLOW_ALONG)) for (const n of Object.values(flow.nodes)) {
+      if (n.kind !== 'choice') continue;
+      for (const o of n.options) {
+        const adds = o.effect?.add ?? [];
+        assert.ok(!adds.some((k) => k === 'petals' || k === 'corners' || k === 'edges'), `${n.id} / ${o.label} counts a piece by hand`);
+      }
+    }
+  });
+  test('stages 1 to 3 can be finished from their first screen by saying the whole stage is done', () => {
+    for (const [stage, finishId, label] of [[1, 's1-done', /^All 4 are done/], [2, 's2-done', /^All 4 are done/], [3, 's3-done', /middle row is all done/]] as const) {
+      const flow = FOLLOW_ALONG[stage];
+      const opt = (flow.nodes[flow.start] as Choice).options.find((o) => label.test(o.label));
+      assert.ok(opt, `stage ${stage} has a "${label}" option`);
+      assert.equal(opt!.next, finishId);
+      // and that option shows the very picture the finish screen shows
+      assert.ok(opt!.picture, `stage ${stage}: the "done" option has a picture`);
+      const done = flow.nodes[finishId] as Finish;
+      assert.deepEqual((opt!.picture as Extract<Picture, { kind: 'cube' }>).demo().colors, (done.picture as Extract<Picture, { kind: 'cube' }>).demo().colors);
+    }
+  });
+  test('every stage has a finish picture for its card, and it is the one the finish screen shows', () => {
+    for (const [id, flow] of Object.entries(FOLLOW_ALONG)) {
+      const done = Object.values(flow.nodes).find((n) => n.kind === 'finish') as Finish;
+      assert.equal(finishPicture(Number(id)), done.picture);
+    }
+  });
+  test('Stage 6 pictures of "all 4 home" do not pretend the top is solved: 4 corners home, at least one twisted', () => {
+    const pics: Picture[] = [
+      (node(6, 's6-check') as Choice).options.find((o) => /^All 4 are home/.test(o.label))!.picture!,
+      (node(6, 's6-keep') as Extract<FlowNode, { kind: 'sequence' }>).checkpoint.goal!,
+      (node(6, 's6-done') as Finish).picture,
+    ];
+    for (const p of pics) {
+      const d = p.demo();
+      assert.equal(cornersInSpot(d.colors), 4, 'all 4 corners are home');
+      const yellowUp = [d.colors.top[0][0], d.colors.top[0][2], d.colors.top[2][0], d.colors.top[2][2]].filter((x) => x === Y).length;
+      assert.ok(yellowUp < 4, 'at least one corner is still twisted, as on a real cube after this stage');
+      assert.ok(yellowTopEdges(d.colors).every(Boolean) && edgeMatches(d.colors).every(Boolean), 'the rest of the top is as Stage 5 left it');
+    }
+    assert.ok((node(6, 's6-done') as Finish).caption, 'the finish picture is labelled as an example');
+  });
+  test('Stage 1 "Drop it in" shows the cube from below as well, on the turn and on the check', () => {
+    const n = node(1, 's1-drop') as Extract<FlowNode, { kind: 'sequence' }>;
+    assert.equal(n.alsoBelow, true);
+    assert.equal(n.checkpoint.alsoBelow, true);
+    assert.equal(n.view, undefined, 'the main picture is the way the cube is held');
   });
 });

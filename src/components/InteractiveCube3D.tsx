@@ -174,6 +174,7 @@ const VIEW_DIRECTION: Record<CubeView, [number, number, number]> = {
   back: [4.2, 3.4, -4.2],
 };
 const VIEW_LABEL: Record<Exclude<CubeView, 'top'>, string> = { bottom: 'From below', left: 'From the left', back: 'From behind' };
+const VIEW_TAG = 'pointer-events-none absolute inset-x-0 bottom-0 bg-background/85 px-1 text-center text-sm font-semibold leading-tight text-foreground';
 
 const FitCamera = ({ view }: { view: CubeView }) => {
   const { camera, size, invalidate } = useThree();
@@ -230,15 +231,25 @@ export const InteractiveCube3D = ({ colors, vis, move, view = 'top', onFaceClick
   // A turn of the bottom, left or back can't be seen from the front: add a second, small view of that face.
   const inset = extraView ?? (move ? hiddenFaceView(move) : null);
   const scene: SceneProps = { colors, vis, move, animate: moving, loop, speed, onFaceClick };
+  const split = Boolean(inset) && inset !== view;
   return (
-    <div ref={ref} className={`relative ${className}`} role="img" aria-label={label ?? '3D cube'} data-animating={running || undefined}>
-      {inView ? <CubeCanvas view={view} running={running} controls {...scene} /> : null}
-      {inset && inset !== view && inView ? (
-        <div className="pointer-events-none absolute bottom-1 left-1 aspect-square h-[min(112px,calc(100%-0.5rem))] overflow-hidden rounded-xl border-2 border-fuchsia-500 bg-background shadow-md md:h-[min(160px,calc(100%-0.5rem))]" data-testid="inset-view" data-view={inset}>
-          <CubeCanvas view={inset} running={running} controls={false} {...scene} onFaceClick={undefined} />
-          <span className="absolute inset-x-0 top-0 bg-background/90 px-1 text-center text-sm font-semibold leading-tight text-foreground">{VIEW_LABEL[inset]}</span>
+    // The caller's classes size and place the cube (often "absolute inset-0"). Never add
+    // "relative" to this element: it would override "absolute" and collapse the canvas
+    // to its 150px default.
+    <div ref={ref} className={className} role="img" aria-label={label ?? '3D cube'} data-animating={running || undefined}>
+      {/* A second view sits BESIDE the main one, so it never covers the piece being looked at. */}
+      <div className="flex h-full w-full">
+        <div className="relative min-w-0 flex-1">
+          {inView ? <CubeCanvas view={view} running={running} controls {...scene} /> : null}
+          {split ? <span className={VIEW_TAG}>{view === 'top' ? 'From the front' : VIEW_LABEL[view]}</span> : null}
         </div>
-      ) : null}
+        {split && inset ? (
+          <div className="relative w-[42%] shrink-0 border-l-2 border-fuchsia-500 bg-background/50" data-testid="inset-view" data-view={inset}>
+            {inView ? <CubeCanvas view={inset} running={running} controls={false} {...scene} onFaceClick={undefined} /> : null}
+            <span className={VIEW_TAG}>{VIEW_LABEL[inset]}</span>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };
